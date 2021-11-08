@@ -9,7 +9,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 
 
 # setting parameters for local / remote environment
-if os.environ['USER'] == 'vasily':
+if os.environ['USERNAME'] != 'heroku':
     import config_local as config
 else:
     import config
@@ -57,7 +57,7 @@ def main() -> None:
 
     # Start the Bot
     # setting parameters for local / remote environment
-    if os.environ['USER'] == 'vasily':
+    if os.environ['USERNAME'] != 'heroku':
         updater.start_polling()
     else:
         logger.info(f'port # {config.PORT}')
