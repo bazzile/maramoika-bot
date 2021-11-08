@@ -60,10 +60,10 @@ def main() -> None:
     if os.environ['USER'] == 'vasily':
         updater.start_polling()
     else:
-        logger.info(f'port # {config.port}')
+        logger.info(f'port # {config.PORT}')
         # Start the webhook
         updater.start_webhook(listen="0.0.0.0",
-                              port=int(config.port),
+                              port=config.PORT,
                               url_path=config.telegram_token)
         updater.bot.setWebhook(f"https://{config.heroku_app_name}.herokuapp.com/{config.telegram_token}")
         updater.idle()
