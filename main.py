@@ -56,12 +56,17 @@ def main() -> None:
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
 
     # Start the Bot
-    updater.start_polling()
-
-    # Run the bot until you press Ctrl-C or the process receives SIGINT,
-    # SIGTERM or SIGABRT. This should be used most of the time, since
-    # start_polling() is non-blocking and will stop the bot gracefully.
-    updater.idle()
+    # setting parameters for local / remote environment
+    if os.environ['USER'] == 'vasily':
+        updater.start_polling()
+    else:
+        # Start the webhook
+        updater.start_webhook(listen="0.0.0.0",
+                              port=int(config.port),
+                              url_path=config.telegram_token)
+        updater.bot.setWebhook("https://{}.herokuapp.com/{}".format(config.heroku_app_name, config.telegram_token))
+        updater.idle()
+    logger.info('Bot started successfully')
 
 
 if __name__ == '__main__':
