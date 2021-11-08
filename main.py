@@ -60,7 +60,7 @@ def main() -> None:
     if os.environ['USER'] == 'vasily':
         updater.start_polling()
     else:
-        logger.info(config.port)
+        logger.info(f'port # {config.port}')
         # Start the webhook
         updater.start_webhook(listen="0.0.0.0",
                               port=int(config.port),
