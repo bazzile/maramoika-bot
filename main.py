@@ -62,10 +62,11 @@ def main() -> None:
     else:
         logger.info(f'port # {config.PORT}')
         # Start the webhook
-        updater.start_webhook(listen="0.0.0.0",
-                              port=config.PORT,
-                              url_path=config.telegram_token)
-        updater.bot.setWebhook(f"https://{config.heroku_app_name}.herokuapp.com/{config.telegram_token}")
+        updater.start_webhook(
+            listen="0.0.0.0",
+            port=config.PORT,
+            url_path=config.telegram_token,
+            webhook_url=f"https://{config.heroku_app_name}.herokuapp.com/{config.telegram_token}")
         updater.idle()
     logger.info('Bot started successfully')
 
