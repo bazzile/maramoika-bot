@@ -1,22 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
 import logging
 
 from telegram import Update, ForceReply
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
+from config import (
+    TELEGRAM_BOT_TOKEN,
+    ENV_IS_SERVER,
+    PORT,
+    DATABASE_URL,
+)
 
-# setting parameters for local / remote environment
-if os.environ['USERNAME'] != 'heroku':
-    import config_local as config
-else:
-    import config
+heroku_app_name = 'maramoika-bot'
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+logger.info(ENV_IS_SERVER)
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -39,11 +42,21 @@ def echo(update: Update, context: CallbackContext) -> None:
     """Echo the user message."""
     update.message.reply_text(update.message.text)
 
+# ==============================
+
+
+def add_transaction(update: Update, context: CallbackContext) -> None:
+    # works only in group chat
+    user_id = update.message.from_user.id
+    group_id, group_name = update.message.chat.id, update.message.chat.title
+
+# ==============================
+
 
 def main() -> None:
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
-    updater = Updater(token=config.telegram_token)
+    updater = Updater(TELEGRAM_BOT_TOKEN)
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
@@ -55,21 +68,25 @@ def main() -> None:
     # on non command i.e message - echo the message on Telegram
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
 
+    # finance =================================================================
+    dispatcher.add_handler(CommandHandler("add", add_transaction, pass_args=True))
+
     # Start the Bot
-    # setting parameters for local / remote environment
-    if os.environ['USERNAME'] != 'heroku':
-        updater.start_polling()
-    else:
-        logger.info(f'port # {config.PORT}')
+    if ENV_IS_SERVER:  # running on server
+        logger.info('Running on server...')
         # Start the webhook
         updater.start_webhook(
             listen="0.0.0.0",
-            port=config.PORT,
-            url_path=config.telegram_token,
-            webhook_url=f"https://{config.heroku_app_name}.herokuapp.com/{config.telegram_token}")
+            port=PORT,
+            url_path=TELEGRAM_BOT_TOKEN,
+            webhook_url=f"https://{heroku_app_name}.herokuapp.com/{TELEGRAM_BOT_TOKEN}")
         updater.idle()
+    else:  # running locally
+        logger.info('Running locally...')
+        updater.start_polling()
     logger.info('Bot started successfully')
 
 
 if __name__ == '__main__':
     main()
+

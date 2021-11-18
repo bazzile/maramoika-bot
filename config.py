@@ -1,14 +1,6 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import os
 
-# telegram credentials
-telegram_token = os.environ.get('telegram_bot_token')
-heroku_app_name = 'maramoika-bot'
-
-# Port given by Heroku
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
+ENV_IS_SERVER = os.environ.get('ENV_IS_SERVER', False)
 PORT = int(os.environ.get('PORT', '8443'))
-
-# postgresql
-db_url = os.environ['DATABASE_URL']
+DATABASE_URL = os.environ.get('DATABASE_URL')
