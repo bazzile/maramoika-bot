@@ -3,6 +3,7 @@
 
 import logging
 
+import re
 from telegram import Update, ForceReply
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
@@ -51,7 +52,22 @@ def echo(update: Update, context: CallbackContext) -> None:
 def add_transaction(update: Update, context: CallbackContext) -> None:
     # works only in group chat
     user_id = update.message.from_user.id
-    group_id, group_name = update.message.chat.id, update.message.chat.title
+    group_id = update.message.chat.id
+    # TODO prohibit transactions in private messages (no group id)
+
+    pattern = re.search(r'^(\d+(([.,])\d{0,2})?)( +\D{3})?( +.+)$', ' '.join(context.args))
+    if pattern:
+
+        item = pattern.group(5).strip()  # .lower()
+        price = pattern.group(1).replace(',', '.')
+
+        db.add_transaction(
+            user_id=user_id, group_id=group_id, item=item, price=price)
+    else:
+        update.message.reply_text(
+            'Ой-вей, таки не пытайтесь меня пrовести! Я принимаю шекели в таком виде:\n'
+            '/add СУММА КАТЕГОРИЯ\nнапример:\n/add 150 колбаса')
+    # update.message.reply_text(' '.join(context.args))
 
 # ==============================
 

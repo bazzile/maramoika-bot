@@ -22,12 +22,12 @@ class Database(object):
             port=url.port
         )
 
-    def add_transaction(self, user_id, group_id, item_desc, price):
+    def add_transaction(self, user_id, group_id, item, price):
         cur = self.conn.cursor()
         logger.info('Adding a new transaction to group {}'.format(group_id))
         cur.execute(
-            'INSERT INTO transactions (user_id, group_id, item_desc, price) VALUES (%s, %s, %s, %s);',
-            (user_id, group_id, item_desc, price))
+            'INSERT INTO transaction (item, price, payer_id, group_id) VALUES (%s, %s, %s, %s);',
+            (item, price, user_id, group_id))
         self.conn.commit()
         cur.close()
         return True
