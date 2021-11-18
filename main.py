@@ -6,6 +6,8 @@ import logging
 from telegram import Update, ForceReply
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
+from postgresql import Database
+
 from config import (
     TELEGRAM_BOT_TOKEN,
     ENV_IS_SERVER,
@@ -13,6 +15,7 @@ from config import (
     DATABASE_URL,
 )
 
+global db
 heroku_app_name = 'maramoika-bot'
 
 # Enable logging
@@ -54,6 +57,10 @@ def add_transaction(update: Update, context: CallbackContext) -> None:
 
 
 def main() -> None:
+    # initialize db
+    global db
+    db = Database(DATABASE_URL)
+
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
     updater = Updater(TELEGRAM_BOT_TOKEN)
