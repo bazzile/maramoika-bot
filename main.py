@@ -4,8 +4,13 @@
 import logging
 
 import re
-from telegram import Update, ForceReply
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram import (
+    Update, ForceReply, InlineKeyboardButton, InlineKeyboardMarkup
+)
+from telegram.ext import (
+    Updater, CommandHandler, MessageHandler, ConversationHandler, CallbackQueryHandler,
+    Filters, CallbackContext
+)
 
 from postgresql import Database
 
@@ -25,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 logger.info(TELEGRAM_BOT_TOKEN)
 logger.info(DATABASE_URL)
+
+# Stages
+ONE, TWO, THREE = range(3)
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -50,7 +58,7 @@ def echo(update: Update, context: CallbackContext) -> None:
 # ==============================
 
 
-def add_transaction(update: Update, context: CallbackContext) -> None:
+def add_transaction(update: Update, context: CallbackContext) -> int:
     # works only in group chat
     user_id = update.message.from_user.id
     group_id = update.message.chat.id
@@ -64,11 +72,48 @@ def add_transaction(update: Update, context: CallbackContext) -> None:
 
         db.add_transaction(
             user_id=user_id, group_id=group_id, item=item, price=price)
+
+        keyboard = [[
+            InlineKeyboardButton("✅ Выбрать операторов", callback_data=str("select")),
+            InlineKeyboardButton("❌ Отмена", callback_data=str("cancel")),
+        ]]
+        update.message.reply_text('Text', reply_markup=InlineKeyboardMarkup(keyboard))
+
     else:
         update.message.reply_text(
             'Ой-вей, таки не пытайтесь меня пrовести! Я принимаю шекели в таком виде:\n'
             '/add СУММА КАТЕГОРИЯ\nнапример:\n/add 150 колбаса')
     # update.message.reply_text(' '.join(context.args))
+    return ONE
+
+
+def select_payees_type(update: Update, context: CallbackContext) -> int:
+    query = update.callback_query
+    query.answer()
+
+    keyboard = [[
+        InlineKeyboardButton("✅ Выбрать операторов", callback_data=str("select")),
+        InlineKeyboardButton("❌ Отмена", callback_data=str("cancel")),
+    ]]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    query.edit_message_text(
+        text=f"*Заказ:*", reply_markup=reply_markup, parse_mode='markdown'
+    )
+    return ONE
+
+
+def cancel(update: Update, _: CallbackContext) -> int:
+    """Returns `ConversationHandler.END`, which tells the
+    ConversationHandler that the conversation is over.
+    """
+
+    query = update.callback_query
+    query.answer()
+    query.edit_message_text(text="Отмена")
+    return ConversationHandler.END
+
 
 # ==============================
 
@@ -85,15 +130,40 @@ def main() -> None:
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
 
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('add_transaction', add_transaction, pass_args=True)],
+        states={
+            ONE: [
+                CallbackQueryHandler(select_payees_type, pattern='^(select)$'),
+                CallbackQueryHandler(cancel, pattern='^(cancel)$'),
+            ],
+            # ADD_ORDER_STAGE: [
+            #     CallbackQueryHandler(review_order, pattern='^(task)$'),
+            #     CallbackQueryHandler(cancel_order, pattern='^(cancel_order)$'),
+            # ],
+            # REVIEW_ORDER_STAGE: [
+            #     CallbackQueryHandler(assign_operators, pattern='^(select)$'),
+            #     CallbackQueryHandler(cancel_order, pattern='^(cancel_order)$'),
+            # ],
+            # ASSIGN_OPERATORS_STAGE: [
+            #     CallbackQueryHandler(assign_operators, pattern=f'^({"|".join(str(operator["telegram_id"]) for operator in operators)})$'),
+            #     CallbackQueryHandler(end, pattern='^(done)$'),
+            #     CallbackQueryHandler(cancel_order, pattern='^(cancel_order)$'),
+            # ],
+        },
+        fallbacks=[CommandHandler('cancel', cancel)],
+    )
+
     # on different commands - answer in Telegram
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("help", help_command))
+    dispatcher.add_handler(conv_handler)
 
     # on non command i.e message - echo the message on Telegram
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
 
     # finance =================================================================
-    dispatcher.add_handler(CommandHandler("add", add_transaction, pass_args=True))
+    # dispatcher.add_handler(CommandHandler("add", add_transaction, pass_args=True))
 
     # Start the Bot
     if ENV_IS_SERVER:  # running on server
