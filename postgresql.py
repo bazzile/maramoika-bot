@@ -2,8 +2,6 @@ import logging
 from urllib import parse
 import psycopg2
 
-from config import DATABASE_URL
-
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -12,7 +10,7 @@ logger = logging.getLogger(__name__)
 class Database(object):
     def __init__(self, database_url):
         parse.uses_netloc.append("postgres")
-        url = parse.urlparse(DATABASE_URL)
+        url = parse.urlparse(database_url)
 
         self.conn = psycopg2.connect(
             database=url.path[1:],

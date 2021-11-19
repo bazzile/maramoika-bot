@@ -23,7 +23,8 @@ heroku_app_name = 'maramoika-bot'
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-logger.info(ENV_IS_SERVER)
+logger.info(TELEGRAM_BOT_TOKEN)
+logger.info(DATABASE_URL)
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -58,8 +59,8 @@ def add_transaction(update: Update, context: CallbackContext) -> None:
     pattern = re.search(r'^(\d+(([.,])\d{0,2})?)( +\D{3})?( +.+)$', ' '.join(context.args))
     if pattern:
 
-        item = pattern.group(5).strip()  # .lower()
-        price = pattern.group(1).replace(',', '.')
+        price = context.args[0].replace(',', '.')  # .lower()
+        item = ' '.join(context.args[1:])  # .lower()
 
         db.add_transaction(
             user_id=user_id, group_id=group_id, item=item, price=price)
