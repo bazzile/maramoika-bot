@@ -79,5 +79,8 @@ class Database(object):
     def get_payers(self, group_id):
         cur = self.conn.cursor()
         cur.execute(
-            'SELECT (payer_id) FROM payer_group WHERE group_id = (%s);', (group_id, )
+            """SELECT id, name FROM payer WHERE payer.id IN (
+                SELECT payer_id FROM payer_group WHERE group_id = (%s));""", (group_id, )
         )
+        payers = [{'id': payer[0], 'name': payer[1]} for payer in cur.fetchall()]
+        logger.info(payers)

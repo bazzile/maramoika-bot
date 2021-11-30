@@ -95,6 +95,7 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
 
         db.add_transaction(
             user_id=user_id, group_id=group_id, item=item, price=price)
+        db.get_payers(group_id)
 
         keyboard = [[
             InlineKeyboardButton("✅ Выбрать операторов", callback_data=str("select")),
