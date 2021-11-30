@@ -61,12 +61,18 @@ def echo(update: Update, context: CallbackContext) -> None:
 def join(update: Update, context: CallbackContext):
     # works only in group chat
     user_id = update.message.from_user.id
+    user_name = update.message.from_user.first_name
     group_id = update.message.chat.id
+
+    if not db.user_exists(user_id):
+        db.create_user(user_id, user_name)
+
     # TODO prohibit transactions in private messages (no group id)
     if db.payer_is_in_group(user_id, group_id):
         update.message.reply_text('Ви уже есть в группе')
         return
-    db.insert_payer(user_id, group_id)
+
+    db.insert_payer_to_group(user_id, group_id)
     update.message.reply_text('Добавил')
     # logger.info(f'Successfully inserted user {user_id} into group {group_id}')
 

@@ -20,6 +20,23 @@ class Database(object):
             port=url.port
         )
 
+    def user_exists(self, user_id):
+        cur = self.conn.cursor()
+        cur.execute(
+            'SELECT (id) FROM payer WHERE id = (%s);', (user_id, )
+        )
+        user = cur.fetchone()
+        return user
+
+    def create_user(self, user_id, user_name):
+        cur = self.conn.cursor()
+        cur.execute(
+            'INSERT INTO payer (id, name) VALUES (%s, %s);', (user_id, user_name)
+        )
+        self.conn.commit()
+        logger.info(f'Successfully created user {user_name} with id {user_id}')
+        cur.close()
+
     def add_transaction(self, user_id, group_id, item, price):
         payer_group_id = self.get_payer_group_id(user_id, group_id)
         cur = self.conn.cursor()
@@ -34,17 +51,17 @@ class Database(object):
     def payer_is_in_group(self, payer_id, group_id):
         cur = self.conn.cursor()
         cur.execute(
-            'SELECT (payer_telegram_id) FROM payer_group WHERE group_telegram_id = (%s);',
+            'SELECT (payer_id) FROM payer_group WHERE group_id = (%s);',
             (group_id,)
         )
         group_members = [member[0] for member in cur.fetchall()]
         if payer_id in group_members:
             return True
 
-    def insert_payer(self, payer_id, group_id):
+    def insert_payer_to_group(self, payer_id, group_id):
         cur = self.conn.cursor()
         cur.execute(
-            'INSERT INTO payer_group(payer_telegram_id, group_telegram_id) VALUES (%s, %s);',
+            'INSERT INTO payer_group(payer_id, group_id) VALUES (%s, %s);',
             (payer_id, group_id)
         )
         self.conn.commit()
@@ -53,8 +70,14 @@ class Database(object):
     def get_payer_group_id(self, payer_id, group_id):
         cur = self.conn.cursor()
         cur.execute(
-            'SELECT (id) FROM payer_group WHERE group_telegram_id = (%s) AND payer_telegram_id = (%s);',
+            'SELECT (id) FROM payer_group WHERE group_id = (%s) AND payer_id = (%s);',
             (group_id, payer_id)
         )
         payer_group_id = cur.fetchone()[0]
         return payer_group_id
+
+    def get_payers(self, group_id):
+        cur = self.conn.cursor()
+        cur.execute(
+            'SELECT (payer_id) FROM payer_group WHERE group_id = (%s);', (group_id, )
+        )
