@@ -29,3 +29,24 @@ class Database(object):
         self.conn.commit()
         cur.close()
         return True
+
+    def payer_is_in_group(self, payer_id, group_id):
+        cur = self.conn.cursor()
+        cur.execute(
+            'SELECT (payer_telegram_id) FROM payer_group WHERE group_telegram_id = (%s);',
+            (group_id,)
+        )
+        group_members = [member[0] for member in cur.fetchall()]
+        if payer_id in group_members:
+            return True
+
+    def insert_payer(self, payer_id, group_id):
+        cur = self.conn.cursor()
+        cur.execute(
+            'INSERT INTO payer_group(payer_telegram_id, group_telegram_id) VALUES (%s, %s);',
+            (payer_id, group_id)
+        )
+        self.conn.commit()
+        cur.close()
+
+

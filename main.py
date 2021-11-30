@@ -58,6 +58,19 @@ def echo(update: Update, context: CallbackContext) -> None:
 # ==============================
 
 
+def join(update: Update, context: CallbackContext):
+    # works only in group chat
+    user_id = update.message.from_user.id
+    group_id = update.message.chat.id
+    # TODO prohibit transactions in private messages (no group id)
+    if db.payer_is_in_group(user_id, group_id):
+        update.message.reply_text('Ви уже есть в группе')
+        return
+    db.insert_payer(user_id, group_id)
+    update.message.reply_text('Добавил')
+    # logger.info(f'Successfully inserted user {user_id} into group {group_id}')
+
+
 def add_transaction(update: Update, context: CallbackContext) -> int:
     # works only in group chat
     user_id = update.message.from_user.id
@@ -156,6 +169,8 @@ def main() -> None:
 
     # on different commands - answer in Telegram
     dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("join", join))
+
     dispatcher.add_handler(CommandHandler("help", help_command))
     dispatcher.add_handler(conv_handler)
 
