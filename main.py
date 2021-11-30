@@ -76,6 +76,10 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
     user_id = update.message.from_user.id
     group_id = update.message.chat.id
     # TODO prohibit transactions in private messages (no group id)
+    if not db.payer_is_in_group(user_id, group_id):
+        # TODO reply with proper message and return proper id
+        update.message.reply_text('Вы не в группе')
+        return 1
 
     pattern = re.search(r'^(\d+(([.,])\d{0,2})?)( +\D{3})?( +.+)$', ' '.join(context.args))
     if pattern:

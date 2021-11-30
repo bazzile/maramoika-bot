@@ -21,11 +21,12 @@ class Database(object):
         )
 
     def add_transaction(self, user_id, group_id, item, price):
+        payer_group_id = self.get_payer_group_id(user_id, group_id)
         cur = self.conn.cursor()
         logger.info('Adding a new transaction to group {}'.format(group_id))
         cur.execute(
-            'INSERT INTO transaction (item, price, payer_id, group_id) VALUES (%s, %s, %s, %s);',
-            (item, price, user_id, group_id))
+            'INSERT INTO transaction (item, price, payer_group_id) VALUES (%s, %s, %s);',
+            (item, price, payer_group_id))
         self.conn.commit()
         cur.close()
         return True
@@ -49,4 +50,11 @@ class Database(object):
         self.conn.commit()
         cur.close()
 
-
+    def get_payer_group_id(self, payer_id, group_id):
+        cur = self.conn.cursor()
+        cur.execute(
+            'SELECT (id) FROM payer_group WHERE group_telegram_id = (%s) AND payer_telegram_id = (%s);',
+            (group_id, payer_id)
+        )
+        payer_group_id = cur.fetchone()[0]
+        return payer_group_id
