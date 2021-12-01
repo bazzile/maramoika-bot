@@ -5,7 +5,7 @@ import logging
 
 import re
 from telegram import (
-    Update, ForceReply, InlineKeyboardButton, InlineKeyboardMarkup
+    Update, ForceReply, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 )
 from telegram.ext import (
     Updater, CommandHandler, MessageHandler, ConversationHandler, CallbackQueryHandler,
@@ -95,13 +95,21 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
 
         db.add_transaction(
             user_id=user_id, group_id=group_id, item=item, price=price)
-        db.get_payers(group_id)
 
-        keyboard = [[
-            InlineKeyboardButton("✅ Выбрать операторов", callback_data=str("select")),
-            InlineKeyboardButton("❌ Отмена", callback_data=str("cancel")),
-        ]]
-        update.message.reply_text('Text', reply_markup=InlineKeyboardMarkup(keyboard))
+        # keyboard = [[
+        #     InlineKeyboardButton("✅ Выбрать операторов", callback_data=str("select")),
+        #     InlineKeyboardButton("❌ Отмена", callback_data=str("cancel")),
+        # ]]
+        keyboard = [
+            [
+                InlineKeyboardButton('Разделить на всех', callback_data='split')
+            ],
+            [
+                InlineKeyboardButton('Выбрать участниов', callback_data='select'),
+                InlineKeyboardButton('Отмена', callback_data='cancel')
+            ]
+        ]
+        update.message.reply_text('Ура, шекели внесены!', reply_markup=InlineKeyboardMarkup(keyboard))
 
     else:
         update.message.reply_text(
@@ -111,19 +119,35 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
     return ONE
 
 
-def select_payees_type(update: Update, context: CallbackContext) -> int:
+def select_payees(update: Update, context: CallbackContext) -> int:
+    group_id = update.message.chat.id
+
     query = update.callback_query
     query.answer()
 
-    keyboard = [[
-        InlineKeyboardButton("✅ Выбрать операторов", callback_data=str("select")),
-        InlineKeyboardButton("❌ Отмена", callback_data=str("cancel")),
-    ]]
+    db.get_payers(group_id)
+
+    # keyboard = [[
+    #     InlineKeyboardButton('Разделить на всех', callback_data='split'),
+    #     InlineKeyboardButton('Выбрать участниов', callback_data='select'), InlineKeyboardButton('Отмена', callback_data='cancel')
+    # ]]
+    # keyboard = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+
+    keyboard = [
+        [
+            InlineKeyboardButton('Разделить на всех', callback_data='split')
+        ],
+        [
+            InlineKeyboardButton('Выбрать участниов', callback_data='select'),
+            InlineKeyboardButton('Отмена', callback_data='cancel')
+        ]
+    ]
+    update.message.reply_text('', reply_markup=InlineKeyboardMarkup(keyboard))
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     query.edit_message_text(
-        text=f"*Заказ:*", reply_markup=reply_markup, parse_mode='markdown'
+        text="", reply_markup=reply_markup, parse_mode='markdown'
     )
     return ONE
 
@@ -155,10 +179,10 @@ def main() -> None:
     dispatcher = updater.dispatcher
 
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('add_transaction', add_transaction, pass_args=True)],
+        entry_points=[CommandHandler('add', add_transaction, pass_args=True)],
         states={
             ONE: [
-                CallbackQueryHandler(select_payees_type, pattern='^(select)$'),
+                CallbackQueryHandler(select_payees, pattern='^(select)$'),
                 CallbackQueryHandler(cancel, pattern='^(cancel)$'),
             ],
             # ADD_ORDER_STAGE: [
