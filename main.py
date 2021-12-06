@@ -13,6 +13,7 @@ from telegram.ext import (
 )
 
 from postgresql import Database
+from helpers import PayerManager
 
 from config import (
     TELEGRAM_BOT_TOKEN,
@@ -32,7 +33,7 @@ logger.info(TELEGRAM_BOT_TOKEN)
 logger.info(DATABASE_URL)
 
 # Stages
-ONE, TWO, THREE = range(3)
+ONE, ASSIGN_PAYEES_STAGE = range(2)
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -54,6 +55,7 @@ def help_command(update: Update, context: CallbackContext) -> None:
 def echo(update: Update, context: CallbackContext) -> None:
     """Echo the user message."""
     update.message.reply_text(update.message.text)
+
 
 # ==============================
 
@@ -120,18 +122,30 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
 
 
 def select_payees(update: Update, context: CallbackContext) -> int:
-    group_id = update.message.chat.id
-
     query = update.callback_query
     query.answer()
 
-    db.get_payers(group_id)
+    group_id = query.message.chat.id
+    payer_manager = PayerManager(db.get_payers(group_id))
 
-    # keyboard = [[
-    #     InlineKeyboardButton('Разделить на всех', callback_data='split'),
-    #     InlineKeyboardButton('Выбрать участниов', callback_data='select'), InlineKeyboardButton('Отмена', callback_data='cancel')
-    # ]]
-    # keyboard = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+    payer_buttons = [
+        InlineKeyboardButton(payer['name'], callback_data=payer['id']) for payer in payer_manager.payers
+    ]
+
+    control_buttons = [
+        InlineKeyboardButton("✅ Готово", callback_data=str("done")),
+        InlineKeyboardButton("❌ Отмена", callback_data=str("back"))]
+
+    keyboard = [[payer_button] for payer_button in payer_buttons] + [control_buttons]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    query.edit_message_text(
+        text="Плательщики:", reply_markup=reply_markup
+    )
+
+    return ASSIGN_PAYEES_STAGE
+
+
+def how_to_split_menu(update: Update, context: CallbackContext) -> int:
 
     keyboard = [
         [
@@ -142,14 +156,28 @@ def select_payees(update: Update, context: CallbackContext) -> int:
             InlineKeyboardButton('Отмена', callback_data='cancel')
         ]
     ]
-    update.message.reply_text('', reply_markup=InlineKeyboardMarkup(keyboard))
+    update.message.reply_text('Ура, шекели внесены!', reply_markup=InlineKeyboardMarkup(keyboard))
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    query.edit_message_text(
-        text="", reply_markup=reply_markup, parse_mode='markdown'
-    )
     return ONE
+
+
+# keyboard = [
+#     [
+#         InlineKeyboardButton('Разделить на всех', callback_data='split')
+#     ],
+#     [
+#         InlineKeyboardButton('Выбрать участниов', callback_data='select'),
+#         InlineKeyboardButton('Отмена', callback_data='cancel')
+#     ]
+# ]
+# update.message.reply_text('', reply_markup=InlineKeyboardMarkup(keyboard))
+#
+# reply_markup = InlineKeyboardMarkup(keyboard)
+#
+# query.edit_message_text(
+#     text="", reply_markup=reply_markup, parse_mode='markdown'
+# )
+# return ONE
 
 
 def cancel(update: Update, _: CallbackContext) -> int:
@@ -184,6 +212,11 @@ def main() -> None:
             ONE: [
                 CallbackQueryHandler(select_payees, pattern='^(select)$'),
                 CallbackQueryHandler(cancel, pattern='^(cancel)$'),
+            ],
+            ASSIGN_PAYEES_STAGE: [
+                CallbackQueryHandler(select_payees, pattern=f'^\\d{9}$'),
+                # CallbackQueryHandler(end, pattern='^(done)$'),
+                CallbackQueryHandler(add_transaction, pattern='^(back)$'),
             ],
             # ADD_ORDER_STAGE: [
             #     CallbackQueryHandler(review_order, pattern='^(task)$'),
@@ -233,4 +266,3 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
-

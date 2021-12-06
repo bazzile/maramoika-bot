@@ -83,4 +83,4 @@ class Database(object):
                 SELECT payer_id FROM payer_group WHERE group_id = (%s));""", (group_id, )
         )
         payers = [{'id': payer[0], 'name': payer[1]} for payer in cur.fetchall()]
-        logger.info(payers)
+        return payers
