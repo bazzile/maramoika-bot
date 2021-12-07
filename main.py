@@ -97,8 +97,10 @@ def validate_transaction(update: Update, context: CallbackContext) -> int:
         item = ' '.join(context.args[1:])  # .lower()
         price = context.args[0].replace(',', '.')  # .lower()
         payment = Payment(item, price)
-
         context.user_data['payment'] = payment
+
+        payer_manager = PayerManager(db.get_payers(group_id))
+        context.user_data['payees'] = payer_manager.payers
 
         select_split(update, context)
 
@@ -138,11 +140,24 @@ def select_payees(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     query.answer()
 
-    group_id = query.message.chat.id
-    payer_manager = PayerManager(db.get_payers(group_id))
+    payees = context.user_data['payees']
+
+    logger.info(query.data)
+
+    if query.data == 'select':
+        pass
+    else:
+        selected_payee = query.data
+        for payee in payees:
+            if payee['id'] == int(selected_payee):
+                payee['is_selected'] = not payee['is_selected']
+                break
+
+    context.user_data['payees'] = payees
 
     payer_buttons = [
-        InlineKeyboardButton(payer['name'], callback_data=payer['id']) for payer in payer_manager.payers
+        InlineKeyboardButton('💵 ' + payee['name'] if payee['is_selected'] else payee['name'],
+                             callback_data=payee['id']) for payee in payees
     ]
 
     control_buttons = [
@@ -154,6 +169,8 @@ def select_payees(update: Update, context: CallbackContext) -> int:
     query.edit_message_text(
         text="Плательщики:", reply_markup=reply_markup
     )
+
+    logger.info(query)
 
     return SELECT_PAYEES_STAGE
 
@@ -209,7 +226,7 @@ def main() -> None:
                 CallbackQueryHandler(cancel, pattern='^(cancel)$'),
             ],
             SELECT_PAYEES_STAGE: [
-                CallbackQueryHandler(select_payees, pattern=f'^\\d{9}$'),
+                CallbackQueryHandler(select_payees, pattern='^[0-9]{9}$'),
                 CallbackQueryHandler(add_transaction, pattern='^(done)$'),
                 CallbackQueryHandler(select_split, pattern='^(back)$'),
             ],
@@ -228,7 +245,6 @@ def main() -> None:
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
 
     # finance =================================================================
-    # dispatcher.add_handler(CommandHandler("add", add_transaction, pass_args=True))
 
     # Start the Bot
     if ENV_IS_SERVER:  # running on server
