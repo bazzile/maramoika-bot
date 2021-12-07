@@ -12,8 +12,10 @@ from telegram.ext import (
     Filters, CallbackContext
 )
 
+import json
+
 from postgresql import Database
-from helpers import PayerManager
+from helpers import Payment, PayerManager
 
 from config import (
     TELEGRAM_BOT_TOKEN,
@@ -29,11 +31,11 @@ heroku_app_name = 'maramoika-bot'
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-logger.info(TELEGRAM_BOT_TOKEN)
-logger.info(DATABASE_URL)
+# logger.info(TELEGRAM_BOT_TOKEN)
+# logger.info(DATABASE_URL)
 
 # Stages
-ONE, ASSIGN_PAYEES_STAGE = range(2)
+SELECT_SPLIT_STAGE, ASSIGN_PAYEES_STAGE, END = range(3)
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -79,7 +81,7 @@ def join(update: Update, context: CallbackContext):
     # logger.info(f'Successfully inserted user {user_id} into group {group_id}')
 
 
-def add_transaction(update: Update, context: CallbackContext) -> int:
+def validate_transaction(update: Update, context: CallbackContext) -> int:
     # works only in group chat
     user_id = update.message.from_user.id
     group_id = update.message.chat.id
@@ -92,16 +94,12 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
     pattern = re.search(r'^(\d+(([.,])\d{0,2})?)( +\D{3})?( +.+)$', ' '.join(context.args))
     if pattern:
 
-        price = context.args[0].replace(',', '.')  # .lower()
         item = ' '.join(context.args[1:])  # .lower()
+        price = context.args[0].replace(',', '.')  # .lower()
+        payment = Payment(item, price)
 
-        db.add_transaction(
-            user_id=user_id, group_id=group_id, item=item, price=price)
+        context.user_data['payment'] = payment
 
-        # keyboard = [[
-        #     InlineKeyboardButton("✅ Выбрать операторов", callback_data=str("select")),
-        #     InlineKeyboardButton("❌ Отмена", callback_data=str("cancel")),
-        # ]]
         keyboard = [
             [
                 InlineKeyboardButton('Разделить на всех', callback_data='split')
@@ -118,7 +116,24 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
             'Ой-вей, таки не пытайтесь меня пrовести! Я принимаю шекели в таком виде:\n'
             '/add СУММА КАТЕГОРИЯ\nнапример:\n/add 150 колбаса')
     # update.message.reply_text(' '.join(context.args))
-    return ONE
+    return SELECT_SPLIT_STAGE
+
+
+def select_split(update: Update, context: CallbackContext) -> int:
+    query = update.callback_query
+    query.answer()
+
+    keyboard = [
+        [
+            InlineKeyboardButton('Разделить на всех', callback_data='split')
+        ],
+        [
+            InlineKeyboardButton('Выбрать участниов', callback_data='select'),
+            InlineKeyboardButton('Отмена', callback_data='cancel')
+        ]
+    ]
+    query.edit_message_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
+    return SELECT_SPLIT_STAGE
 
 
 def select_payees(update: Update, context: CallbackContext) -> int:
@@ -133,8 +148,8 @@ def select_payees(update: Update, context: CallbackContext) -> int:
     ]
 
     control_buttons = [
-        InlineKeyboardButton("✅ Готово", callback_data=str("done")),
-        InlineKeyboardButton("❌ Отмена", callback_data=str("back"))]
+        InlineKeyboardButton("⬅ Назад", callback_data=str("back")),
+        InlineKeyboardButton("✅ Готово", callback_data=str("done"))]
 
     keyboard = [[payer_button] for payer_button in payer_buttons] + [control_buttons]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -145,39 +160,21 @@ def select_payees(update: Update, context: CallbackContext) -> int:
     return ASSIGN_PAYEES_STAGE
 
 
-def how_to_split_menu(update: Update, context: CallbackContext) -> int:
+def add_transaction(update: Update, context: CallbackContext) -> int:
+    query = update.callback_query
+    query.answer()
+    # works only in group chat
+    user_id = query.from_user.id
+    group_id = query.message.chat.id
 
-    keyboard = [
-        [
-            InlineKeyboardButton('Разделить на всех', callback_data='split')
-        ],
-        [
-            InlineKeyboardButton('Выбрать участниов', callback_data='select'),
-            InlineKeyboardButton('Отмена', callback_data='cancel')
-        ]
-    ]
-    update.message.reply_text('Ура, шекели внесены!', reply_markup=InlineKeyboardMarkup(keyboard))
+    payment = context.user_data['payment']
 
-    return ONE
+    db.add_transaction(
+        user_id=user_id, group_id=group_id, item=payment.item, price=payment.price)
 
+    query.edit_message_text(text="Готово!")
 
-# keyboard = [
-#     [
-#         InlineKeyboardButton('Разделить на всех', callback_data='split')
-#     ],
-#     [
-#         InlineKeyboardButton('Выбрать участниов', callback_data='select'),
-#         InlineKeyboardButton('Отмена', callback_data='cancel')
-#     ]
-# ]
-# update.message.reply_text('', reply_markup=InlineKeyboardMarkup(keyboard))
-#
-# reply_markup = InlineKeyboardMarkup(keyboard)
-#
-# query.edit_message_text(
-#     text="", reply_markup=reply_markup, parse_mode='markdown'
-# )
-# return ONE
+    return ConversationHandler.END
 
 
 def cancel(update: Update, _: CallbackContext) -> int:
@@ -207,30 +204,17 @@ def main() -> None:
     dispatcher = updater.dispatcher
 
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('add', add_transaction, pass_args=True)],
+        entry_points=[CommandHandler('add', validate_transaction, pass_args=True)],
         states={
-            ONE: [
+            SELECT_SPLIT_STAGE: [
                 CallbackQueryHandler(select_payees, pattern='^(select)$'),
                 CallbackQueryHandler(cancel, pattern='^(cancel)$'),
             ],
             ASSIGN_PAYEES_STAGE: [
                 CallbackQueryHandler(select_payees, pattern=f'^\\d{9}$'),
-                # CallbackQueryHandler(end, pattern='^(done)$'),
-                CallbackQueryHandler(add_transaction, pattern='^(back)$'),
+                CallbackQueryHandler(add_transaction, pattern='^(done)$'),
+                CallbackQueryHandler(select_split, pattern='^(back)$'),
             ],
-            # ADD_ORDER_STAGE: [
-            #     CallbackQueryHandler(review_order, pattern='^(task)$'),
-            #     CallbackQueryHandler(cancel_order, pattern='^(cancel_order)$'),
-            # ],
-            # REVIEW_ORDER_STAGE: [
-            #     CallbackQueryHandler(assign_operators, pattern='^(select)$'),
-            #     CallbackQueryHandler(cancel_order, pattern='^(cancel_order)$'),
-            # ],
-            # ASSIGN_OPERATORS_STAGE: [
-            #     CallbackQueryHandler(assign_operators, pattern=f'^({"|".join(str(operator["telegram_id"]) for operator in operators)})$'),
-            #     CallbackQueryHandler(end, pattern='^(done)$'),
-            #     CallbackQueryHandler(cancel_order, pattern='^(cancel_order)$'),
-            # ],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )
