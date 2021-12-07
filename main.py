@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 # logger.info(DATABASE_URL)
 
 # Stages
-SELECT_SPLIT_STAGE, ASSIGN_PAYEES_STAGE, END = range(3)
+SELECT_SPLIT_STAGE, SELECT_PAYEES_STAGE, END = range(3)
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -89,7 +89,7 @@ def validate_transaction(update: Update, context: CallbackContext) -> int:
     if not db.payer_is_in_group(user_id, group_id):
         # TODO reply with proper message and return proper id
         update.message.reply_text('Вы не в группе')
-        return 1
+        return ConversationHandler.END
 
     pattern = re.search(r'^(\d+(([.,])\d{0,2})?)( +\D{3})?( +.+)$', ' '.join(context.args))
     if pattern:
@@ -100,28 +100,18 @@ def validate_transaction(update: Update, context: CallbackContext) -> int:
 
         context.user_data['payment'] = payment
 
-        keyboard = [
-            [
-                InlineKeyboardButton('Разделить на всех', callback_data='split')
-            ],
-            [
-                InlineKeyboardButton('Выбрать участниов', callback_data='select'),
-                InlineKeyboardButton('Отмена', callback_data='cancel')
-            ]
-        ]
-        update.message.reply_text('Ура, шекели внесены!', reply_markup=InlineKeyboardMarkup(keyboard))
+        select_split(update, context)
+
+        return SELECT_SPLIT_STAGE
 
     else:
         update.message.reply_text(
             'Ой-вей, таки не пытайтесь меня пrовести! Я принимаю шекели в таком виде:\n'
             '/add СУММА КАТЕГОРИЯ\nнапример:\n/add 150 колбаса')
-    # update.message.reply_text(' '.join(context.args))
-    return SELECT_SPLIT_STAGE
+        return ConversationHandler.END
 
 
 def select_split(update: Update, context: CallbackContext) -> int:
-    query = update.callback_query
-    query.answer()
 
     keyboard = [
         [
@@ -132,7 +122,15 @@ def select_split(update: Update, context: CallbackContext) -> int:
             InlineKeyboardButton('Отмена', callback_data='cancel')
         ]
     ]
-    query.edit_message_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
+
+    query = update.callback_query
+
+    if query:
+        query.answer()
+        query.edit_message_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        update.message.reply_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
+
     return SELECT_SPLIT_STAGE
 
 
@@ -157,7 +155,7 @@ def select_payees(update: Update, context: CallbackContext) -> int:
         text="Плательщики:", reply_markup=reply_markup
     )
 
-    return ASSIGN_PAYEES_STAGE
+    return SELECT_PAYEES_STAGE
 
 
 def add_transaction(update: Update, context: CallbackContext) -> int:
@@ -210,7 +208,7 @@ def main() -> None:
                 CallbackQueryHandler(select_payees, pattern='^(select)$'),
                 CallbackQueryHandler(cancel, pattern='^(cancel)$'),
             ],
-            ASSIGN_PAYEES_STAGE: [
+            SELECT_PAYEES_STAGE: [
                 CallbackQueryHandler(select_payees, pattern=f'^\\d{9}$'),
                 CallbackQueryHandler(add_transaction, pattern='^(done)$'),
                 CallbackQueryHandler(select_split, pattern='^(back)$'),
