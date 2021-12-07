@@ -38,6 +38,10 @@ class Database(object):
         logger.info(f'Successfully created user {user_name} with id {user_id}')
         cur.close()
 
+    def add_transaction_with_payees(self, user_id, group_id, item, price, payee_id_list):
+        transaction_id = self.add_transaction(user_id, group_id, item, price)
+        self.assign_payees(transaction_id, payee_id_list)
+
     def add_transaction(self, user_id, group_id, item, price):
         payer_group_id = self.get_payer_group_id(user_id, group_id)
         cur = self.conn.cursor()

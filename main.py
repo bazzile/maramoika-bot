@@ -102,7 +102,7 @@ def validate_transaction(update: Update, context: CallbackContext) -> int:
         context.user_data['payment'] = payment
 
         payer_manager = PayerManager(db.get_payers(group_id))
-        context.user_data['payees'] = payer_manager.payers
+        context.user_data['payer_manager'] = payer_manager
 
         select_split(update, context)
 
@@ -142,23 +142,17 @@ def select_payees(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     query.answer()
 
-    payees = context.user_data['payees']
+    payer_manager = context.user_data['payer_manager']
 
-    # if query.data != 'select':
-    #     pass
     if re.match(telegram_user_id_regex, query.data):
-        # else:
         selected_payee = query.data
-        for payee in payees:
-            if payee['id'] == int(selected_payee):
-                payee['is_selected'] = not payee['is_selected']
-                break
+        payer_manager.toggle_payee(selected_payee)
 
-    context.user_data['payees'] = payees
+    context.user_data['payer_manager'] = payer_manager
 
     payer_buttons = [
         InlineKeyboardButton('💵 ' + payee['name'] if payee['is_selected'] else payee['name'],
-                             callback_data=payee['id']) for payee in payees
+                             callback_data=payee['id']) for payee in payer_manager.payers
     ]
 
     control_buttons = [
@@ -184,13 +178,12 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
     group_id = query.message.chat.id
 
     payment = context.user_data['payment']
-    payees = context.user_data['payees']
-    selected_payees_id_list = [payee['id'] for payee in payees if payee['is_selected']]
+    payer_manager = context.user_data['payer_manager']
+    selected_payees_id_list = payer_manager.get_selected_payee_ids()
 
-    transaction_id = db.add_transaction(
-        user_id=user_id, group_id=group_id, item=payment.item, price=payment.price)
-
-    db.assign_payees(transaction_id, selected_payees_id_list)
+    db.add_transaction_with_payees(
+        user_id=user_id, group_id=group_id, item=payment.item, price=payment.price,
+        payee_id_list=selected_payees_id_list)
 
     query.edit_message_text(text="Готово!")
 
