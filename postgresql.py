@@ -1,6 +1,7 @@
 import logging
 from urllib import parse
 import psycopg2
+from psycopg2.extras import execute_values
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -42,11 +43,24 @@ class Database(object):
         cur = self.conn.cursor()
         logger.info('Adding a new transaction to group {}'.format(group_id))
         cur.execute(
-            'INSERT INTO transaction (item, price, payer_group_id) VALUES (%s, %s, %s);',
+            'INSERT INTO transaction (item, price, payer_group_id) VALUES (%s, %s, %s) RETURNING id;',
             (item, price, payer_group_id))
         self.conn.commit()
+        transaction_id = cur.fetchone()[0]
         cur.close()
-        return True
+        return transaction_id
+
+    def assign_payees(self, transaction_id, payee_id_list):
+        transaction_payee_list = []
+        for payee_id in payee_id_list:
+            transaction_payee_list.append((transaction_id, payee_id))
+
+        logger.info(f'Assigning payees to transaction {transaction_id}')
+
+        cur = self.conn.cursor()
+        execute_values(cur, 'INSERT INTO payee (transaction_id, payee_id) VALUES %s', transaction_payee_list)
+        self.conn.commit()
+        cur.close()
 
     def payer_is_in_group(self, payer_id, group_id):
         cur = self.conn.cursor()

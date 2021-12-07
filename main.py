@@ -184,9 +184,13 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
     group_id = query.message.chat.id
 
     payment = context.user_data['payment']
+    payees = context.user_data['payees']
+    selected_payees_id_list = [payee['id'] for payee in payees if payee['is_selected']]
 
-    db.add_transaction(
+    transaction_id = db.add_transaction(
         user_id=user_id, group_id=group_id, item=payment.item, price=payment.price)
+
+    db.assign_payees(transaction_id, selected_payees_id_list)
 
     query.edit_message_text(text="Готово!")
 
