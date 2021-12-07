@@ -12,8 +12,6 @@ from telegram.ext import (
     Filters, CallbackContext
 )
 
-
-
 from postgresql import Database
 from helpers import Payment, PayerManager
 
@@ -116,14 +114,10 @@ def validate_transaction(update: Update, context: CallbackContext) -> int:
 
 
 def select_split(update: Update, context: CallbackContext) -> int:
-
     keyboard = [
         [
-            InlineKeyboardButton('Разделить на всех', callback_data='add')
-        ],
-        [
+            InlineKeyboardButton('Разделить на всех', callback_data='add'),
             InlineKeyboardButton('Выбрать участниов', callback_data='select'),
-            InlineKeyboardButton('Отмена', callback_data='cancel')
         ]
     ]
 
@@ -155,11 +149,13 @@ def select_payees(update: Update, context: CallbackContext) -> int:
                              callback_data=payee['id']) for payee in payer_manager.payers
     ]
 
-    control_buttons = [
+    control_buttons = [[InlineKeyboardButton("✅ Готово", callback_data=str("done"))]] + [[
         InlineKeyboardButton("⬅ Назад", callback_data=str("back")),
-        InlineKeyboardButton("✅ Готово", callback_data=str("done"))]
+        InlineKeyboardButton('Отмена', callback_data='cancel')
+        ]]
 
-    keyboard = [[payer_button] for payer_button in payer_buttons] + [control_buttons]
+    keyboard = [[payer_button] for payer_button in payer_buttons] + control_buttons
+
     reply_markup = InlineKeyboardMarkup(keyboard)
     query.edit_message_text(
         text="Плательщики:", reply_markup=reply_markup
@@ -222,12 +218,12 @@ def main() -> None:
             SELECT_SPLIT_STAGE: [
                 CallbackQueryHandler(select_payees, pattern='^(select)$'),
                 CallbackQueryHandler(add_transaction, pattern='^(add)$'),
-                CallbackQueryHandler(cancel, pattern='^(cancel)$'),
             ],
             SELECT_PAYEES_STAGE: [
                 CallbackQueryHandler(select_payees, pattern=telegram_user_id_regex),
                 CallbackQueryHandler(add_transaction, pattern='^(done)$'),
                 CallbackQueryHandler(select_split, pattern='^(back)$'),
+                CallbackQueryHandler(cancel, pattern='^(cancel)$'),
             ],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
