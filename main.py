@@ -119,7 +119,7 @@ def select_split(update: Update, context: CallbackContext) -> int:
 
     keyboard = [
         [
-            InlineKeyboardButton('Разделить на всех', callback_data='split')
+            InlineKeyboardButton('Разделить на всех', callback_data='add')
         ],
         [
             InlineKeyboardButton('Выбрать участниов', callback_data='select'),
@@ -221,6 +221,7 @@ def main() -> None:
         states={
             SELECT_SPLIT_STAGE: [
                 CallbackQueryHandler(select_payees, pattern='^(select)$'),
+                CallbackQueryHandler(add_transaction, pattern='^(add)$'),
                 CallbackQueryHandler(cancel, pattern='^(cancel)$'),
             ],
             SELECT_PAYEES_STAGE: [
