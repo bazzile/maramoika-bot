@@ -12,7 +12,7 @@ from telegram.ext import (
     Filters, CallbackContext
 )
 
-import json
+
 
 from postgresql import Database
 from helpers import Payment, PayerManager
@@ -36,6 +36,8 @@ logger = logging.getLogger(__name__)
 
 # Stages
 SELECT_SPLIT_STAGE, SELECT_PAYEES_STAGE, END = range(3)
+
+telegram_user_id_regex = '[0-9]{9}'
 
 
 # Define a few command handlers. These usually take the two arguments update and
@@ -142,11 +144,10 @@ def select_payees(update: Update, context: CallbackContext) -> int:
 
     payees = context.user_data['payees']
 
-    logger.info(query.data)
-
-    if query.data == 'select':
-        pass
-    else:
+    # if query.data != 'select':
+    #     pass
+    if re.match(telegram_user_id_regex, query.data):
+        # else:
         selected_payee = query.data
         for payee in payees:
             if payee['id'] == int(selected_payee):
@@ -226,7 +227,7 @@ def main() -> None:
                 CallbackQueryHandler(cancel, pattern='^(cancel)$'),
             ],
             SELECT_PAYEES_STAGE: [
-                CallbackQueryHandler(select_payees, pattern='^[0-9]{9}$'),
+                CallbackQueryHandler(select_payees, pattern=telegram_user_id_regex),
                 CallbackQueryHandler(add_transaction, pattern='^(done)$'),
                 CallbackQueryHandler(select_split, pattern='^(back)$'),
             ],
