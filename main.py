@@ -12,6 +12,7 @@ from telegram.ext import (
     Filters, CallbackContext
 )
 
+from table import GoogleSheetsAPI, Sheet
 from postgresql import Database
 from helpers import Payment, PayerManager
 
@@ -20,6 +21,8 @@ from config import (
     ENV_IS_SERVER,
     PORT,
     DATABASE_URL,
+    GOOGLE_BOT_PKEY,
+    TEMPLATE_SHEET_ID
 )
 
 global db
@@ -202,6 +205,13 @@ def cancel(update: Update, _: CallbackContext) -> int:
 
 def main() -> None:
     # initialize db
+    google_sheets_api = GoogleSheetsAPI(pkey=GOOGLE_BOT_PKEY)
+    new_sheet = google_sheets_api.create_spreadsheet_from_template(
+        template_spreadsheet_id=TEMPLATE_SHEET_ID, new_name='NEW_!')
+
+    sheet = Sheet(new_sheet, 'payers')
+    sheet.add_value(sheet.last_row, 1, 'хуй')
+
     global db
     db = Database(DATABASE_URL)
 
