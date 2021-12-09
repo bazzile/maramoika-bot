@@ -25,7 +25,21 @@ class Sheet:
         self.sheet = sheet.worksheet(sheet_name)
         self.last_row = len(self.sheet.row_values(1))
 
-    def add_value(self, row_num, col_num, value):
-        self.sheet.update_cell(row_num, col_num, value)
+    # def add_value(self, row_num, col_num, value):
+    #     self.sheet.update_cell(row_num, col_num, value)
+
+
+class Payers(Sheet):
+    def __init__(self, sheet, sheet_name):
+        super().__init__(sheet, sheet_name)
+        self.payer_ids = []
+
+    def add_payer(self, name, telegram_id):
+        self.sheet.append_row([name, telegram_id])
+        self.payer_ids.append(telegram_id)
+        # self.add_value(row_num=self.last_row, col_num=1, value=name)
+        # self.add_value(row_num=self.last_row, col_num=2, value=telegram_id)
+
+
 
 
