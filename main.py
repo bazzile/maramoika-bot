@@ -12,7 +12,7 @@ from telegram.ext import (
     Filters, CallbackContext
 )
 
-from table import GoogleSheetsAPI, Sheet, Payers
+from table import GoogleSheetsAPI, Sheet, PayerSheet
 from postgresql import Database
 from helpers import Payment, PayerManager
 
@@ -209,7 +209,7 @@ def main() -> None:
     new_sheet = google_sheets_api.create_spreadsheet_from_template(
         template_spreadsheet_id=TEMPLATE_SHEET_ID, new_name='NEW_!')
 
-    payers = Payers(new_sheet, 'payers')
+    payers = PayerSheet(new_sheet, 'payers')
     payers.add_payer('хуй', '008')
 
     global db
