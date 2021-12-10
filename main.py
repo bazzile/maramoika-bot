@@ -56,12 +56,6 @@ def help_command(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /help is issued."""
     update.message.reply_text('Help!')
 
-
-def echo(update: Update, context: CallbackContext) -> None:
-    """Echo the user message."""
-    update.message.reply_text(update.message.text)
-
-
 # ==============================
 
 
@@ -69,7 +63,7 @@ def join(update: Update, context: CallbackContext):
     # works only in group chat
     user_id = update.message.from_user.id
     user_name = update.message.from_user.first_name
-    group_id = update.message.chat.id
+    # group_id = update.message.chat.id
 
     if not db.user_exists(user_id):
         db.create_user(user_id, user_name)
@@ -245,9 +239,6 @@ def main() -> None:
 
     dispatcher.add_handler(CommandHandler("help", help_command))
     dispatcher.add_handler(conv_handler)
-
-    # on non command i.e message - echo the message on Telegram
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
 
     # finance =================================================================
 

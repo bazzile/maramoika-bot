@@ -12,9 +12,9 @@ from config import (
 )
 
 google_sheets_api = GoogleSheetsAPI(pkey=GOOGLE_BOT_PKEY)
-new_sheet = google_sheets_api.create_spreadsheet_from_template(
-    template_spreadsheet_id=TEMPLATE_SHEET_ID, new_name='NEW_TEST')
+# new_sheet = google_sheets_api.create_spreadsheet_from_template(
+#     template_spreadsheet_id=TEMPLATE_SHEET_ID, new_name='NEW_TEST')
 
 # payers = PayerSheet(new_sheet, 'payers')
 # payers.add_payer('хуй', '008')
-TransactionSheet(new_sheet, 'Shared Expenses')
+# TransactionSheet(new_sheet, 'Shared Expenses')
