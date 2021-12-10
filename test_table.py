@@ -1,4 +1,4 @@
-from table import GoogleSheetsAPI, Sheet, PayerSheet
+from table import GoogleSheetsAPI, Sheet, PayerSheet, TransactionSheet
 from postgresql import Database
 from helpers import Payment, PayerManager
 
@@ -15,5 +15,6 @@ google_sheets_api = GoogleSheetsAPI(pkey=GOOGLE_BOT_PKEY)
 new_sheet = google_sheets_api.create_spreadsheet_from_template(
     template_spreadsheet_id=TEMPLATE_SHEET_ID, new_name='NEW_TEST')
 
-payers = PayerSheet(new_sheet, 'payers')
-payers.add_payer('хуй', '008')
+# payers = PayerSheet(new_sheet, 'payers')
+# payers.add_payer('хуй', '008')
+TransactionSheet(new_sheet, 'Shared Expenses')

@@ -1,6 +1,11 @@
+import logging
 import gspread
 # from gdata.spreadsheet.service import SpreadsheetsService
 import ast
+
+# Enable logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class GoogleSheetsAPI:
@@ -56,5 +61,11 @@ class PayerSheet(Sheet):
         # self.add_value(row_num=self.last_row, col_num=2, value=telegram_id)
 
 
+class TransactionSheet(Sheet):
+    def __init__(self, sheet, sheet_name):
+        super().__init__(sheet, sheet_name)
 
+        self.sheet.append_row(values=['cake', '', 123, '', 'user'], table_range='B4')
+        self.sheet.append_row(values=['cake1', '', 1123, '', 'user2'], table_range='B4')
+        # logger.info(self.sheet.get_all_records(head=3))
 
