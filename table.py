@@ -25,14 +25,17 @@ class GoogleSheetsAPI:
         return new_worksheet
 
     def group_spreadsheet_exists(self, group_id):
-        existing_sheet_names = self.list_existing_sheet_names()
+        existing_sheet_names = self.list_existing_spreadsheet_names()
         for name in existing_sheet_names:
             if name.endswith(group_id):
                 return True
 
-    def list_existing_sheet_names(self):
+    def list_existing_spreadsheet_names(self):
         existing_spreadsheets = self.api_client.list_spreadsheet_files()
         return [spreadsheet['name'] for spreadsheet in existing_spreadsheets]
+
+    def open_spreadsheet_by_name(self, name):
+        return self.api_client.open(name)
     # def create_new_sheet_if_not_exist(self, title):
     #     if title not in [sh.title for sh in gc.openall()]:
     #         gc.create(title)
@@ -43,13 +46,15 @@ class GoogleSheetsAPI:
         # self.shared_transactions_sheet = spreadsheet.get_worksheet(0)  # orders
 
 
+class GroupSpreadSheetManager:
+    def __init__(self, spreadsheet):
+        self.payers = PayerSheet(spreadsheet, 'payers')
+        self.transactions = PayerSheet(spreadsheet, 'transactions')
+
+
 class Sheet:
     def __init__(self, sheet, sheet_name):
         self.sheet = sheet.worksheet(sheet_name)
-        # self.last_row = len(self.sheet.row_values(1))
-
-    # def add_value(self, row_num, col_num, value):
-    #     self.sheet.update_cell(row_num, col_num, value)
 
 
 class PayerSheet(Sheet):
@@ -62,16 +67,18 @@ class PayerSheet(Sheet):
 
     def get_payer_by_id(self, payer_id):
         payers = self.list_payers()
-        selected_payer = [payer for payer in payers if payer['telegram_id'] == payer_id][0]
-        return selected_payer
+        selected_payers = [payer for payer in payers if payer['telegram_id'] == payer_id]
+        if selected_payers:
+            return selected_payers[0]
 
-    # def payer_exists(self, payer_id):
-    #     payers = self.list_payers()
-    #     if payer_id in [payer['telegram_id'] for payer in payers]:
-    #         return True
+    def payer_exists(self, payer_id):
+        payer = self.get_payer_by_id(payer_id)
+        if payer:
+            return True
 
     def add_payer(self, name, telegram_id):
         self.sheet.append_row([name, telegram_id])
+        logger.info(f'Successfully inserted user {name} ({telegram_id})')
         # self.payers.append(telegram_id)
         # self.add_value(row_num=self.last_row, col_num=1, value=name)
         # self.add_value(row_num=self.last_row, col_num=2, value=telegram_id)

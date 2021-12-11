@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+# ToDo a dict with goup ids holding connections
+import json
+import jsonpickle
 import logging
 
 import re
@@ -9,10 +11,10 @@ from telegram import (
 )
 from telegram.ext import (
     Updater, CommandHandler, MessageHandler, ConversationHandler, CallbackQueryHandler,
-    Filters, CallbackContext
+    Filters, CallbackContext, DictPersistence
 )
 
-from table import GoogleSheetsAPI, Sheet, PayerSheet
+from table import GoogleSheetsAPI, GroupSpreadSheetManager
 from postgresql import Database
 from helpers import Payment, PayerManager
 
@@ -26,6 +28,7 @@ from config import (
 )
 
 global db
+global google_sheets_api
 heroku_app_name = 'maramoika-bot'
 
 # Enable logging
@@ -59,23 +62,29 @@ def help_command(update: Update, context: CallbackContext) -> None:
 # ==============================
 
 
-def join(update: Update, context: CallbackContext):
-    # works only in group chat
-    user_id = update.message.from_user.id
-    user_name = update.message.from_user.first_name
-    # group_id = update.message.chat.id
-
-    if not db.user_exists(user_id):
-        db.create_user(user_id, user_name)
+def join(update: Update, _: CallbackContext):
 
     # TODO prohibit transactions in private messages (no group id)
-    if db.payer_is_in_group(user_id, group_id):
+
+    user_id, user_name = update.message.from_user.id, update.message.from_user.first_name
+    group_id, group_name = str(update.message.chat.id), update.message.chat.title
+
+    sheets_api_client = google_sheets_api
+    group_spreadsheet_name = group_name + group_id
+
+    if not sheets_api_client.group_spreadsheet_exists(group_id):
+        sheets_api_client.create_spreadsheet_from_template(
+            template_spreadsheet_id=TEMPLATE_SHEET_ID, new_name=group_spreadsheet_name)
+
+    sheet_manager = GroupSpreadSheetManager(
+        sheets_api_client.open_spreadsheet_by_name(group_spreadsheet_name))
+
+    if sheet_manager.payers.payer_exists(user_id):
         update.message.reply_text('Ви уже есть в группе')
         return
 
-    db.insert_payer_to_group(user_id, group_id)
+    sheet_manager.payers.add_payer(user_name, user_id)
     update.message.reply_text('Добавил')
-    # logger.info(f'Successfully inserted user {user_id} into group {group_id}')
 
 
 def validate_transaction(update: Update, context: CallbackContext) -> int:
@@ -199,18 +208,23 @@ def cancel(update: Update, _: CallbackContext) -> int:
 
 def main() -> None:
     # initialize db
+    global google_sheets_api
     google_sheets_api = GoogleSheetsAPI(pkey=GOOGLE_BOT_PKEY)
-    new_sheet = google_sheets_api.create_spreadsheet_from_template(
-        template_spreadsheet_id=TEMPLATE_SHEET_ID, new_name='NEW_!')
-
-    payers = PayerSheet(new_sheet, 'payers')
-    payers.add_payer('хуй', '008')
+    # bot_data_json = json.dumps({'google_sheets_api': jsonpickle.encode(google_sheets_api)})
+    # bot_data_json = json.dumps({'google_sheets_api': google_sheets_api})
+    # new_sheet = google_sheets_api.create_spreadsheet_from_template(
+    #     template_spreadsheet_id=TEMPLATE_SHEET_ID, new_name='NEW_!')
+    #
+    # payers = PayerSheet(new_sheet, 'payers')
+    # payers.add_payer('хуй', '008')
 
     global db
     db = Database(DATABASE_URL)
 
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
+    # persistence = DictPersistence(bot_data_json=bot_data_json)
+    # updater = Updater(TELEGRAM_BOT_TOKEN, persistence=persistence)
     updater = Updater(TELEGRAM_BOT_TOKEN)
 
     # Get the dispatcher to register handlers
