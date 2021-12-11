@@ -3,6 +3,8 @@ import gspread
 # from gdata.spreadsheet.service import SpreadsheetsService
 import ast
 
+from config import TRANSACTION_SHEET_NAME, PARTICIPANT_SHEET_NAME
+
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,8 +50,8 @@ class GoogleSheetsAPI:
 
 class GroupSpreadSheetManager:
     def __init__(self, spreadsheet):
-        self.payers = PayerSheet(spreadsheet, 'payers')
-        self.transactions = PayerSheet(spreadsheet, 'transactions')
+        self.payers = PayerSheet(spreadsheet, PARTICIPANT_SHEET_NAME)
+        self.transactions = PayerSheet(spreadsheet, TRANSACTION_SHEET_NAME)
 
 
 class Sheet:

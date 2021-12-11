@@ -8,7 +8,7 @@ from config import (
     PORT,
     DATABASE_URL,
     GOOGLE_BOT_PKEY,
-    TEMPLATE_SHEET_ID
+    TEMPLATE_SPREADSHEET_ID
 )
 
 google_sheets_api = GoogleSheetsAPI(pkey=GOOGLE_BOT_PKEY)

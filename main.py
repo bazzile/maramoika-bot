@@ -24,7 +24,7 @@ from config import (
     PORT,
     DATABASE_URL,
     GOOGLE_BOT_PKEY,
-    TEMPLATE_SHEET_ID
+    TEMPLATE_SPREADSHEET_ID
 )
 
 global db
@@ -62,7 +62,7 @@ def help_command(update: Update, context: CallbackContext) -> None:
 # ==============================
 
 
-def join(update: Update, _: CallbackContext):
+def join_user(update: Update, _: CallbackContext):
 
     # TODO prohibit transactions in private messages (no group id)
 
@@ -74,7 +74,7 @@ def join(update: Update, _: CallbackContext):
 
     if not sheets_api_client.group_spreadsheet_exists(group_id):
         sheets_api_client.create_spreadsheet_from_template(
-            template_spreadsheet_id=TEMPLATE_SHEET_ID, new_name=group_spreadsheet_name)
+            template_spreadsheet_id=TEMPLATE_SPREADSHEET_ID, new_name=group_spreadsheet_name)
 
     sheet_manager = GroupSpreadSheetManager(
         sheets_api_client.open_spreadsheet_by_name(group_spreadsheet_name))
@@ -249,7 +249,7 @@ def main() -> None:
 
     # on different commands - answer in Telegram
     dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("join", join))
+    dispatcher.add_handler(CommandHandler("join", join_user))
 
     dispatcher.add_handler(CommandHandler("help", help_command))
     dispatcher.add_handler(conv_handler)
