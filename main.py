@@ -14,7 +14,7 @@ from telegram.ext import (
     Filters, CallbackContext, DictPersistence
 )
 
-from table import GoogleSheetsAPI, GroupSpreadSheetManager
+from table import GoogleSheetsAPI, GroupSpreadSheetManager, Transaction
 from postgresql import Database
 from helpers import Payment, PayerManager
 
@@ -62,6 +62,12 @@ def help_command(update: Update, context: CallbackContext) -> None:
 # ==============================
 
 
+def create_group_spreadsheet(group_spreadsheet_name):
+    sheets_api_client = google_sheets_api
+    sheets_api_client.create_spreadsheet_from_template(
+        template_spreadsheet_id=TEMPLATE_SPREADSHEET_ID, new_name=group_spreadsheet_name)
+
+
 def join_user(update: Update, _: CallbackContext):
 
     # TODO prohibit transactions in private messages (no group id)
@@ -73,8 +79,7 @@ def join_user(update: Update, _: CallbackContext):
     group_spreadsheet_name = group_name + group_id
 
     if not sheets_api_client.group_spreadsheet_exists(group_id):
-        sheets_api_client.create_spreadsheet_from_template(
-            template_spreadsheet_id=TEMPLATE_SPREADSHEET_ID, new_name=group_spreadsheet_name)
+        create_group_spreadsheet(group_spreadsheet_name)
 
     sheet_manager = GroupSpreadSheetManager(
         sheets_api_client.open_spreadsheet_by_name(group_spreadsheet_name))
@@ -87,55 +92,65 @@ def join_user(update: Update, _: CallbackContext):
     update.message.reply_text('Добавил')
 
 
-def validate_transaction(update: Update, context: CallbackContext) -> int:
-    # works only in group chat
-    user_id = update.message.from_user.id
-    group_id = update.message.chat.id
-    # TODO prohibit transactions in private messages (no group id)
-    if not db.payer_is_in_group(user_id, group_id):
-        # TODO reply with proper message and return proper id
-        update.message.reply_text('Вы не в группе')
-        return ConversationHandler.END
+# def validate_transaction(update: Update, context: CallbackContext) -> int:
+#
+#     user_id, user_name = update.message.from_user.id, update.message.from_user.first_name
+#     group_id, group_name = str(update.message.chat.id), update.message.chat.title
+#
+#     sheets_api_client = google_sheets_api
+#     group_spreadsheet_name = group_name + group_id
+#
+#     # if not sheets_api_client.group_spreadsheet_exists(group_id):
+#     #     update.message.reply_text('')
+#     #     return ConversationHandler.END
+#     # sheet_manager = GroupSpreadSheetManager(
+#     #     sheets_api_client.open_spreadsheet_by_name(group_spreadsheet_name))
+#
+#     # TODO prohibit transactions in private messages (no group id)
+#     if not db.payer_is_in_group(user_id, group_id):
+#         # TODO reply with proper message and return proper id
+#         update.message.reply_text('Вы не в группе')
+#         return ConversationHandler.END
+#
+#     pattern = re.search(r'^(\d+(([.,])\d{0,2})?)( +\D{3})?( +.+)$', ' '.join(context.args))
+#     if pattern:
+#
+#         item = ' '.join(context.args[1:])  # .lower()
+#         price = context.args[0].replace(',', '.')  # .lower()
+#         payment = Payment(item, price)
+#         context.user_data['payment'] = payment
+#
+#         payer_manager = PayerManager(db.get_payers(group_id))
+#         context.user_data['payer_manager'] = payer_manager
+#
+#         select_split(update, context)
+#
+#         return SELECT_SPLIT_STAGE
+#
+#     else:
+#         update.message.reply_text(
+#             'Ой-вей, таки не пытайтесь меня пrовести! Я принимаю шекели в таком виде:\n'
+#             '/add СУММА КАТЕГОРИЯ\nнапример:\n/add 150 колбаса')
+#         return ConversationHandler.END
 
-    pattern = re.search(r'^(\d+(([.,])\d{0,2})?)( +\D{3})?( +.+)$', ' '.join(context.args))
-    if pattern:
 
-        item = ' '.join(context.args[1:])  # .lower()
-        price = context.args[0].replace(',', '.')  # .lower()
-        payment = Payment(item, price)
-        context.user_data['payment'] = payment
-
-        payer_manager = PayerManager(db.get_payers(group_id))
-        context.user_data['payer_manager'] = payer_manager
-
-        select_split(update, context)
-
-        return SELECT_SPLIT_STAGE
-
-    else:
-        update.message.reply_text(
-            'Ой-вей, таки не пытайтесь меня пrовести! Я принимаю шекели в таком виде:\n'
-            '/add СУММА КАТЕГОРИЯ\nнапример:\n/add 150 колбаса')
-        return ConversationHandler.END
-
-
-def select_split(update: Update, context: CallbackContext) -> int:
-    keyboard = [
-        [
-            InlineKeyboardButton('Разделить на всех', callback_data='add'),
-            InlineKeyboardButton('Выбрать участниов', callback_data='select'),
-        ]
-    ]
-
-    query = update.callback_query
-
-    if query:
-        query.answer()
-        query.edit_message_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
-    else:
-        update.message.reply_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
-
-    return SELECT_SPLIT_STAGE
+# def select_split(update: Update, context: CallbackContext) -> int:
+#     keyboard = [
+#         [
+#             InlineKeyboardButton('Разделить на всех', callback_data='add'),
+#             InlineKeyboardButton('Выбрать участниов', callback_data='select'),
+#         ]
+#     ]
+#
+#     query = update.callback_query
+#
+#     if query:
+#         query.answer()
+#         query.edit_message_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
+#     else:
+#         update.message.reply_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
+#
+#     return SELECT_SPLIT_STAGE
 
 
 def select_payees(update: Update, context: CallbackContext) -> int:
@@ -172,24 +187,104 @@ def select_payees(update: Update, context: CallbackContext) -> int:
     return SELECT_PAYEES_STAGE
 
 
+# def add_transaction(update: Update, context: CallbackContext) -> int:
+#     query = update.callback_query
+#     query.answer()
+#     # works only in group chat
+#     user_id = query.from_user.id
+#     group_id = query.message.chat.id
+#
+#     payment = context.user_data['payment']
+#     payer_manager = context.user_data['payer_manager']
+#     selected_payees_id_list = payer_manager.get_selected_payee_ids()
+#
+#     db.add_transaction_with_payees(
+#         user_id=user_id, group_id=group_id, item=payment.item, price=payment.price,
+#         payee_id_list=selected_payees_id_list)
+#
+#     query.edit_message_text(text="Готово!")
+#
+#     return ConversationHandler.END
+
 def add_transaction(update: Update, context: CallbackContext) -> int:
+
+    user_id, user_name = update.message.from_user.id, update.message.from_user.first_name
+    group_id, group_name = str(update.message.chat.id), update.message.chat.title
+
+    sheets_api_client = google_sheets_api
+    group_spreadsheet_name = group_name + group_id
+
+    if not sheets_api_client.group_spreadsheet_exists(group_id):
+        update.message.reply_text('Сначала создайте таблицу')
+        return ConversationHandler.END
+
+    sheet_manager = GroupSpreadSheetManager(
+        sheets_api_client.open_spreadsheet_by_name(group_spreadsheet_name))
+
+    if user_id not in [payer['telegram_id'] for payer in sheet_manager.payers.list_payers()]:
+        update.message.reply_text('Сначала вступите в группу')
+        return ConversationHandler.END
+
+    item = ' '.join(context.args[1:])  # .lower()
+    price = context.args[0]  # .replace(',', '.')  # .lower()
+
+    transaction = Transaction(item, price)
+
+    if not transaction.is_valid:
+        update.message.reply_text(
+            'Ой-вей, таки не пытайтесь меня пrовести! Я принимаю шекели в таком виде:\n'
+            '/add СУММА КАТЕГОРИЯ\nнапример:\n/add 150 колбаса')
+        return ConversationHandler.END
+        # payment = Payment(item, price)
+        # context.user_data['payment'] = payment
+
+        # payer_manager = PayerManager(db.get_payers(group_id))
+        # context.user_data['payer_manager'] = payer_manager
+
+    keyboard = [
+        [
+            InlineKeyboardButton('Разделить на всех', callback_data='add'),
+            InlineKeyboardButton('Выбрать участниов', callback_data='select'),
+        ]
+    ]
+
     query = update.callback_query
-    query.answer()
-    # works only in group chat
-    user_id = query.from_user.id
-    group_id = query.message.chat.id
 
-    payment = context.user_data['payment']
-    payer_manager = context.user_data['payer_manager']
-    selected_payees_id_list = payer_manager.get_selected_payee_ids()
+    if query:
+        query.answer()
+        query.edit_message_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        update.message.reply_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
 
-    db.add_transaction_with_payees(
-        user_id=user_id, group_id=group_id, item=payment.item, price=payment.price,
-        payee_id_list=selected_payees_id_list)
+    return SELECT_SPLIT_STAGE
 
-    query.edit_message_text(text="Готово!")
+    # else:
+    #     update.message.reply_text(
+    #         'Ой-вей, таки не пытайтесь меня пrовести! Я принимаю шекели в таком виде:\n'
+    #         '/add СУММА КАТЕГОРИЯ\nнапример:\n/add 150 колбаса')
+    #     return ConversationHandler.END
+    #
 
-    return ConversationHandler.END
+    # query = update.callback_query
+    # query.answer()
+    # # works only in group chat
+    # user_id = query.from_user.id
+    # group_id = query.message.chat.id
+    #
+    # payment = context.user_data['payment']
+    # payer_manager = context.user_data['payer_manager']
+    # selected_payees_id_list = payer_manager.get_selected_payee_ids()
+    #
+    # db.add_transaction_with_payees(
+    #     user_id=user_id, group_id=group_id, item=payment.item, price=payment.price,
+    #     payee_id_list=selected_payees_id_list)
+    #
+    # query.edit_message_text(text="Готово!")
+
+    # return ConversationHandler.END
+
+
+# def user_id (user_id, group_id)
 
 
 def cancel(update: Update, _: CallbackContext) -> int:
@@ -231,16 +326,16 @@ def main() -> None:
     dispatcher = updater.dispatcher
 
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('add', validate_transaction, pass_args=True)],
+        entry_points=[CommandHandler('add', add_transaction, pass_args=True)],
         states={
             SELECT_SPLIT_STAGE: [
                 CallbackQueryHandler(select_payees, pattern='^(select)$'),
-                CallbackQueryHandler(add_transaction, pattern='^(add)$'),
+                # CallbackQueryHandler(add_transaction, pattern='^(add)$'),
             ],
             SELECT_PAYEES_STAGE: [
                 CallbackQueryHandler(select_payees, pattern=telegram_user_id_regex),
                 CallbackQueryHandler(add_transaction, pattern='^(done)$'),
-                CallbackQueryHandler(select_split, pattern='^(back)$'),
+                # CallbackQueryHandler(select_split, pattern='^(back)$'),
                 CallbackQueryHandler(cancel, pattern='^(cancel)$'),
             ],
         },

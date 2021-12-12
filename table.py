@@ -1,5 +1,6 @@
 import logging
 import gspread
+import re
 # from gdata.spreadsheet.service import SpreadsheetsService
 import ast
 
@@ -45,7 +46,7 @@ class GoogleSheetsAPI:
 
     # def publish_spreadsheet(self):
 
-        # self.shared_transactions_sheet = spreadsheet.get_worksheet(0)  # orders
+    # self.shared_transactions_sheet = spreadsheet.get_worksheet(0)  # orders
 
 
 class GroupSpreadSheetManager:
@@ -87,11 +88,16 @@ class PayerSheet(Sheet):
 
 
 class Transaction:
-    def __init__(self, item, price, payer, payees):
+    def __init__(self, item, price):
         self.item = item
         self.price = price
-        self.payer = payer
-        self.payees = payees
+        self.is_valid = self.check_validity()
+        # self.payer = payer
+        # self.payees = payees
+
+    def check_validity(self):
+        if re.match(r'^\d+([.,]\d{0,2}?)?$', self.price) and re.match(r'^\D{2,}$', self.item):
+            return True
 
 
 class TransactionSheet(Sheet):
@@ -105,7 +111,3 @@ class TransactionSheet(Sheet):
             table_range='B4')
         # self.sheet.append_row(values=['cake1', '', 1123, '', 'user2'], table_range='B4')
         # logger.info(self.sheet.get_all_records(head=3))
-
-
-
-
