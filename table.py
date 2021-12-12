@@ -88,16 +88,27 @@ class PayerSheet(Sheet):
 
 
 class Transaction:
-    def __init__(self, item, price):
+    def __init__(self, item, price, payer, payees):
         self.item = item
         self.price = price
+        self.payer = payer
+        self.payees = payees
         self.is_valid = self.check_validity()
-        # self.payer = payer
-        # self.payees = payees
+        self.set_all_payees_selected()
 
     def check_validity(self):
         if re.match(r'^\d+([.,]\d{0,2}?)?$', self.price) and re.match(r'^\D{2,}$', self.item):
             return True
+
+    def set_all_payees_selected(self):
+        for payer in self.payees:
+            payer['is_selected'] = True
+
+    def toggle_payee(self, payee_id):
+        for payee in self.payees:
+            if payee['telegram_id'] == int(payee_id):
+                payee['is_selected'] = not payee['is_selected']
+                break
 
 
 class TransactionSheet(Sheet):

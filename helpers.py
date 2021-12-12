@@ -9,12 +9,12 @@ class PayerManager:
 
     def toggle_payee(self, payee_id):
         for payee in self.payers:
-            if payee['id'] == int(payee_id):
+            if payee['telegram_id'] == int(payee_id):
                 payee['is_selected'] = not payee['is_selected']
                 break
 
     def get_selected_payee_ids(self):
-        return [payee['id'] for payee in self.payers if payee['is_selected']]
+        return [payee['telegram_id'] for payee in self.payers if payee['is_selected']]
     # def list_names(self):
     #     names = [payer['name'] for payer in self.payers]
     #     return names

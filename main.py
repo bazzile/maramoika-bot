@@ -157,17 +157,17 @@ def select_payees(update: Update, context: CallbackContext) -> int:
     query = update.callback_query
     query.answer()
 
-    payer_manager = context.user_data['payer_manager']
+    transaction = context.user_data['transaction']
 
     if re.match(telegram_user_id_regex, query.data):
         selected_payee = query.data
-        payer_manager.toggle_payee(selected_payee)
+        transaction.toggle_payee(selected_payee)
 
-    context.user_data['payer_manager'] = payer_manager
+    context.user_data['transaction'] = transaction
 
     payer_buttons = [
         InlineKeyboardButton('💵 ' + payee['name'] if payee['is_selected'] else payee['name'],
-                             callback_data=payee['id']) for payee in payer_manager.payers
+                             callback_data=payee['telegram_id']) for payee in transaction.payees
     ]
 
     control_buttons = [[InlineKeyboardButton("✅ Готово", callback_data=str("done"))]] + [[
@@ -221,14 +221,18 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
     sheet_manager = GroupSpreadSheetManager(
         sheets_api_client.open_spreadsheet_by_name(group_spreadsheet_name))
 
-    if user_id not in [payer['telegram_id'] for payer in sheet_manager.payers.list_payers()]:
+    payer = sheet_manager.payers.get_payer_by_id(user_id)
+    payers = sheet_manager.payers.list_payers()
+
+    # ToDo payer exists as method?
+    if not sheet_manager.payers.payer_exists(user_id):
         update.message.reply_text('Сначала вступите в группу')
         return ConversationHandler.END
 
     item = ' '.join(context.args[1:])  # .lower()
     price = context.args[0]  # .replace(',', '.')  # .lower()
 
-    transaction = Transaction(item, price)
+    transaction = Transaction(item, price, payer, payers)
 
     if not transaction.is_valid:
         update.message.reply_text(
@@ -241,6 +245,8 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
         # payer_manager = PayerManager(db.get_payers(group_id))
         # context.user_data['payer_manager'] = payer_manager
 
+    context.user_data['transaction'] = transaction
+
     keyboard = [
         [
             InlineKeyboardButton('Разделить на всех', callback_data='add'),
@@ -248,13 +254,18 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
         ]
     ]
 
-    query = update.callback_query
+    # query = update.callback_query
 
-    if query:
-        query.answer()
-        query.edit_message_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
-    else:
-        update.message.reply_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
+    # if query:
+    #     query.answer()
+    #     query.edit_message_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
+    # else:
+    #     update.message.reply_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
+    # if query:
+    #     query.answer()
+    #     query.edit_message_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
+    # else:
+    update.message.reply_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
 
     return SELECT_SPLIT_STAGE
 
