@@ -23,8 +23,8 @@ payer_3 = Payer('ira', 444454321)
 # sheet_manager.payers.add_payer(payer_2)
 # sheet_manager.payers.add_payer(payer_3)
 
-payers = sheet_manager.payers.list_payers()
+payees = sheet_manager.payers.list_payers()
 # payer = sheet_manager.payers.get_payer_by_id(payer_1.id)
 payer = payer_1
-transaction = Transaction('apple', '200', payer, payers)
+transaction = Transaction('apple', '200', payer, payees)
 sheet_manager.transactions.add_transaction(transaction)
