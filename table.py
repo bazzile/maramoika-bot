@@ -58,6 +58,9 @@ class Payer:
         self.id = telegram_id
         self.is_selected = True
 
+    def toggle_payee_status(self):
+        self.is_selected = not self.is_selected
+
 
 class PayerSheet(Sheet):
     def __init__(self, sheet, sheet_name):
@@ -80,6 +83,8 @@ class PayerSheet(Sheet):
             return True
 
     def add_payer(self, payer):
+        if self.payer_exists(payer):
+            raise Exception('payer already exists')
         self.sheet.append_row([payer.name, payer.id])
         logger.info(f'Successfully inserted user {payer.name} ({payer.id})')
         return payer
@@ -98,16 +103,6 @@ class Transaction:
         if re.match(r'^\d+([.,]\d{0,2}?)?$', self.price) and re.match(r'^\D{2,}$', self.item):
             return True
 
-    # def set_all_payees_selected(self):
-    #     for payee in self.payees:
-    #         payee['is_selected'] = True
-
-    def toggle_payee(self, payee_id):
-        for payee in self.payees:
-            if payee.id == int(payee_id):
-                payee.is_selected = not payee.is_selected
-                break
-
 
 class TransactionSheet(Sheet):
     def __init__(self, sheet, sheet_name):
@@ -118,6 +113,4 @@ class TransactionSheet(Sheet):
         self.sheet.append_row(
             values=[transaction.item, '', float(transaction.price), '', transaction.payer.name, '', '', *payee_mark_list],
             table_range='C4')
-        # self.sheet.append_row(values=['cake1', '', 1123, '', 'user2'], table_range='B4')
-        # logger.info(self.sheet.get_all_records(head=3))
 
