@@ -1,4 +1,4 @@
-from table import GoogleSheetsAPI, Transaction, GroupSpreadSheetManager
+from table import GoogleSheetsAPI, Transaction, GroupSpreadSheetManager, Payer
 from postgresql import Database
 from helpers import Payment, PayerManager
 
@@ -16,10 +16,15 @@ client = GoogleSheetsAPI(pkey=GOOGLE_BOT_PKEY)
 sheet_manager = GroupSpreadSheetManager(
     client.open_spreadsheet_by_name('maramoika_test'))
 
-# sheet_manager.payers.add_payer('vasily', '123456789')
-# payer_id = sheet_manager.payers.add_payer('serg', 987654321)
-payer_id = 987654321
-payer = sheet_manager.payers.get_payer_by_id(payer_id)
+payer_1 = Payer('vasily', 123456789)
+payer_2 = Payer('serg', 987654321)
+payer_3 = Payer('ira', 444454321)
+# sheet_manager.payers.add_payer(payer_1)
+# sheet_manager.payers.add_payer(payer_2)
+# sheet_manager.payers.add_payer(payer_3)
+
 payers = sheet_manager.payers.list_payers()
-transaction = Transaction('apple', '120', payer, payers)
+# payer = sheet_manager.payers.get_payer_by_id(payer_1.id)
+payer = payer_1
+transaction = Transaction('apple', '200', payer, payers)
 sheet_manager.transactions.add_transaction(transaction)

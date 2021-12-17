@@ -52,32 +52,37 @@ class Sheet:
         self.sheet = sheet.worksheet(sheet_name)
 
 
+class Payer:
+    def __init__(self, name, telegram_id):
+        self.name = name
+        self.id = telegram_id
+        self.is_selected = True
+
+
 class PayerSheet(Sheet):
     def __init__(self, sheet, sheet_name):
         super().__init__(sheet, sheet_name)
         # self.payers = []
 
     def list_payers(self):
-        return self.sheet.get_all_records()
+        payer_list = [Payer(*record) for record in self.sheet.get_all_records()]
+        return payer_list
 
     def get_payer_by_id(self, payer_id):
         payers = self.list_payers()
-        selected_payers = [payer for payer in payers if payer['telegram_id'] == payer_id]
-        if selected_payers:
-            return selected_payers[0]
+        payer = [payer for payer in payers if payer.id == payer_id]
+        if payer:
+            return payer
 
     def payer_exists(self, payer_id):
         payer = self.get_payer_by_id(payer_id)
         if payer:
             return True
 
-    def add_payer(self, name, telegram_id):
-        self.sheet.append_row([name, telegram_id])
-        logger.info(f'Successfully inserted user {name} ({telegram_id})')
-        return telegram_id
-        # self.payers.append(telegram_id)
-        # self.add_value(row_num=self.last_row, col_num=1, value=name)
-        # self.add_value(row_num=self.last_row, col_num=2, value=telegram_id)
+    def add_payer(self, payer):
+        self.sheet.append_row([payer.name, payer.id])
+        logger.info(f'Successfully inserted user {payer.name} ({payer.id})')
+        return payer
 
 
 class Transaction:
@@ -87,20 +92,20 @@ class Transaction:
         self.payer = payer
         self.payees = payees
         self.is_valid = self.check_validity()
-        self.set_all_payees_selected()
+        # self.set_all_payees_selected()
 
     def check_validity(self):
         if re.match(r'^\d+([.,]\d{0,2}?)?$', self.price) and re.match(r'^\D{2,}$', self.item):
             return True
 
-    def set_all_payees_selected(self):
-        for payer in self.payees:
-            payer['is_selected'] = True
+    # def set_all_payees_selected(self):
+    #     for payee in self.payees:
+    #         payee['is_selected'] = True
 
     def toggle_payee(self, payee_id):
         for payee in self.payees:
-            if payee['telegram_id'] == int(payee_id):
-                payee['is_selected'] = not payee['is_selected']
+            if payee.id == int(payee_id):
+                payee.is_selected = not payee.is_selected
                 break
 
 
@@ -109,10 +114,10 @@ class TransactionSheet(Sheet):
         super().__init__(sheet, sheet_name)
 
     def add_transaction(self, transaction):
-        payee_mark_list = ['X' if payee['is_selected'] else '' for payee in transaction.payees]
-        logger.info(transaction.payer['name'])
+        payee_mark_list = ['X' if payee.is_selected else '' for payee in transaction.payees]
         self.sheet.append_row(
-            values=[transaction.item, '', float(transaction.price), '', transaction.payer['name'], '', '', *payee_mark_list],
+            values=[transaction.item, '', float(transaction.price), '', transaction.payer.name, '', '', *payee_mark_list],
             table_range='C4')
         # self.sheet.append_row(values=['cake1', '', 1123, '', 'user2'], table_range='B4')
         # logger.info(self.sheet.get_all_records(head=3))
+
