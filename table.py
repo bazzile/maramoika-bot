@@ -39,20 +39,12 @@ class GoogleSheetsAPI:
 
     def open_spreadsheet_by_name(self, name):
         return self.api_client.open(name)
-    # def create_new_sheet_if_not_exist(self, title):
-    #     if title not in [sh.title for sh in gc.openall()]:
-    #         gc.create(title)
-    #     print([sh.title for sh in gc.openall()])
-
-    # def publish_spreadsheet(self):
-
-    # self.shared_transactions_sheet = spreadsheet.get_worksheet(0)  # orders
 
 
 class GroupSpreadSheetManager:
     def __init__(self, spreadsheet):
         self.payers = PayerSheet(spreadsheet, PARTICIPANT_SHEET_NAME)
-        self.transactions = PayerSheet(spreadsheet, TRANSACTION_SHEET_NAME)
+        self.transactions = TransactionSheet(spreadsheet, TRANSACTION_SHEET_NAME)
 
 
 class Sheet:
@@ -82,6 +74,7 @@ class PayerSheet(Sheet):
     def add_payer(self, name, telegram_id):
         self.sheet.append_row([name, telegram_id])
         logger.info(f'Successfully inserted user {name} ({telegram_id})')
+        return telegram_id
         # self.payers.append(telegram_id)
         # self.add_value(row_num=self.last_row, col_num=1, value=name)
         # self.add_value(row_num=self.last_row, col_num=2, value=telegram_id)
@@ -116,9 +109,10 @@ class TransactionSheet(Sheet):
         super().__init__(sheet, sheet_name)
 
     def add_transaction(self, transaction):
-        payee_mark_list = ['X' if payee['isSelected'] else '' for payee in transaction.payees]
+        payee_mark_list = ['X' if payee['is_selected'] else '' for payee in transaction.payees]
+        logger.info(transaction.payer['name'])
         self.sheet.append_row(
-            values=[transaction.item, '', transaction.price, '', transaction.payer, payee_mark_list],
-            table_range='B4')
+            values=[transaction.item, '', float(transaction.price), '', transaction.payer['name'], '', '', *payee_mark_list],
+            table_range='C4')
         # self.sheet.append_row(values=['cake1', '', 1123, '', 'user2'], table_range='B4')
         # logger.info(self.sheet.get_all_records(head=3))

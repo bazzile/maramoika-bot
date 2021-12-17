@@ -206,7 +206,7 @@ def select_payees(update: Update, context: CallbackContext) -> int:
 #
 #     return ConversationHandler.END
 
-def add_transaction(update: Update, context: CallbackContext) -> int:
+def prepare_transaction(update: Update, context: CallbackContext) -> int:
 
     user_id, user_name = update.message.from_user.id, update.message.from_user.first_name
     group_id, group_name = str(update.message.chat.id), update.message.chat.title
@@ -254,8 +254,32 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
         ]
     ]
 
-    # query = update.callback_query
+    update.message.reply_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
 
+    return SELECT_SPLIT_STAGE
+
+
+def add_transaction(update: Update, context: CallbackContext) -> int:
+
+    query = update.callback_query
+    query.answer()
+
+    sheets_api_client = google_sheets_api
+
+    # user_id, user_name = update.message.from_user.id, update.message.from_user.first_name
+    group_id, group_name = str(query.message.chat.id), query.message.chat.title
+    group_spreadsheet_name = group_name + group_id
+
+    sheet_manager = GroupSpreadSheetManager(
+        sheets_api_client.open_spreadsheet_by_name(group_spreadsheet_name))
+
+    transaction = context.user_data['transaction']
+
+    sheet_manager.transactions.add_transaction(transaction)
+
+    query.edit_message_text(text="Готово!")
+
+    return ConversationHandler.END
     # if query:
     #     query.answer()
     #     query.edit_message_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
@@ -265,16 +289,7 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
     #     query.answer()
     #     query.edit_message_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
     # else:
-    update.message.reply_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
-
-    return SELECT_SPLIT_STAGE
-
-    # else:
-    #     update.message.reply_text(
-    #         'Ой-вей, таки не пытайтесь меня пrовести! Я принимаю шекели в таком виде:\n'
-    #         '/add СУММА КАТЕГОРИЯ\nнапример:\n/add 150 колбаса')
-    #     return ConversationHandler.END
-    #
+    # update.message.reply_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
 
     # query = update.callback_query
     # query.answer()
@@ -290,12 +305,6 @@ def add_transaction(update: Update, context: CallbackContext) -> int:
     #     user_id=user_id, group_id=group_id, item=payment.item, price=payment.price,
     #     payee_id_list=selected_payees_id_list)
     #
-    # query.edit_message_text(text="Готово!")
-
-    # return ConversationHandler.END
-
-
-# def user_id (user_id, group_id)
 
 
 def cancel(update: Update, _: CallbackContext) -> int:
@@ -337,7 +346,7 @@ def main() -> None:
     dispatcher = updater.dispatcher
 
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('add', add_transaction, pass_args=True)],
+        entry_points=[CommandHandler('add', prepare_transaction, pass_args=True)],
         states={
             SELECT_SPLIT_STAGE: [
                 CallbackQueryHandler(select_payees, pattern='^(select)$'),
