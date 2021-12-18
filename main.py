@@ -259,11 +259,16 @@ def prepare_transaction(update: Update, context: CallbackContext) -> int:
     context.user_data['transaction'] = transaction
     context.user_data['payer'] = user
 
+    # keyboard = [
+    #     [
+    #         InlineKeyboardButton('Разделить на всех', callback_data='split_even'),
+    #         InlineKeyboardButton('Записать на отдельных участниов', callback_data='select'),
+    #     ]
+    # ]
+
     keyboard = [
-        [
-            InlineKeyboardButton('Разделить на всех', callback_data='split_even'),
-            InlineKeyboardButton('Записать на отдельных участниов', callback_data='select'),
-        ]
+        [InlineKeyboardButton('👥 Разделить на всех', callback_data='split_even')],
+        [InlineKeyboardButton('👤 Выбрать отдельно', callback_data='select')]
     ]
 
     update.message.reply_text('Как внести?', reply_markup=InlineKeyboardMarkup(keyboard))
