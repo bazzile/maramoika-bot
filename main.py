@@ -174,8 +174,12 @@ def select_payees(update: Update, context: CallbackContext) -> int:
                              callback_data=payee.id) for payee in transaction.payees
     ]
 
-    control_buttons = [[InlineKeyboardButton("✅ Готово", callback_data=str("done"))]] + [[
-        InlineKeyboardButton("⬅ Назад", callback_data=str("back")),
+    # control_buttons = [[InlineKeyboardButton("✅ Готово", callback_data=str("done"))]] + [[
+    #     InlineKeyboardButton("⬅ Назад", callback_data=str("back")),
+    #     InlineKeyboardButton('Отмена', callback_data='cancel')
+    #     ]]
+    control_buttons = [[
+        InlineKeyboardButton("✅ Готово", callback_data=str("done")),
         InlineKeyboardButton('Отмена', callback_data='cancel')
         ]]
 
@@ -360,7 +364,7 @@ def main() -> None:
             SELECT_PAYEES_STAGE: [
                 CallbackQueryHandler(select_payees, pattern=telegram_user_id_regex),
                 CallbackQueryHandler(add_transaction, pattern='^(done)$'),
-                # CallbackQueryHandler(select_split, pattern='^(back)$'),
+                # CallbackQueryHandler(prepare_transaction, pattern='^(back)$'),
                 CallbackQueryHandler(cancel, pattern='^(cancel)$'),
             ],
         },
