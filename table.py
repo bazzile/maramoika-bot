@@ -111,6 +111,15 @@ class Transaction:
         if re.match(r'^\d+([.,]\d{0,2}?)?$', self.price) and re.match(r'^\D{2,}$', self.item):
             return True
 
+    def has_payees(self):
+        number_of_payees = len([payee for payee in self.payees if payee.is_selected])
+        if number_of_payees > 0:
+            return True
+
+    def set_all_as_payees(self):
+        for payee in self.payees:
+            payee.is_selected = True
+
 
 class TransactionSheet(Sheet):
     def __init__(self, sheet, sheet_name):

@@ -166,11 +166,14 @@ def select_payees(update: Update, context: CallbackContext) -> int:
                 payee.toggle_payee_status()
                 break
 
+    if not transaction.has_payees():
+        transaction.set_all_as_payees()
+
     context.user_data['transaction'] = transaction
     # context.user_data['payer'] = payer
 
     payer_buttons = [
-        InlineKeyboardButton('💵 ' + payee.name if payee.is_selected else payee.name,
+        InlineKeyboardButton('💸 ' + payee.name if payee.is_selected else payee.name,
                              callback_data=payee.id) for payee in transaction.payees
     ]
 
@@ -259,7 +262,7 @@ def prepare_transaction(update: Update, context: CallbackContext) -> int:
     keyboard = [
         [
             InlineKeyboardButton('Разделить на всех', callback_data='split_even'),
-            InlineKeyboardButton('Выбрать участниов', callback_data='select'),
+            InlineKeyboardButton('Записать на отдельных участниов', callback_data='select'),
         ]
     ]
 
