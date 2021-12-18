@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 # ToDo a dict with goup ids holding connections
 import json
-import jsonpickle
 import logging
 
 import re
@@ -14,7 +13,7 @@ from telegram.ext import (
     Filters, CallbackContext, DictPersistence
 )
 
-from table import GoogleSheetsAPI, GroupSpreadSheetManager, Transaction
+from table import GoogleSheetsAPI, GroupSpreadSheetManager, Transaction, Payer
 from postgresql import Database
 from helpers import Payment, PayerManager
 
@@ -72,23 +71,23 @@ def join_user(update: Update, _: CallbackContext):
 
     # TODO prohibit transactions in private messages (no group id)
 
-    user_id, user_name = update.message.from_user.id, update.message.from_user.first_name
+    payer = Payer(update.message.from_user.first_name, update.message.from_user.id)
     group_id, group_name = str(update.message.chat.id), update.message.chat.title
 
     sheets_api_client = google_sheets_api
     group_spreadsheet_name = group_name + group_id
 
-    if not sheets_api_client.group_spreadsheet_exists(group_id):
+    if not sheets_api_client.group_spreadsheet_exists(group_spreadsheet_name):
         create_group_spreadsheet(group_spreadsheet_name)
 
     sheet_manager = GroupSpreadSheetManager(
         sheets_api_client.open_spreadsheet_by_name(group_spreadsheet_name))
 
-    if sheet_manager.payers.payer_exists(user_id):
+    if sheet_manager.payers.payer_exists(payer):
         update.message.reply_text('Ви уже есть в группе')
         return
 
-    sheet_manager.payers.add_payer(user_name, user_id)
+    sheet_manager.payers.add_payer(payer)
     update.message.reply_text('Добавил')
 
 
@@ -158,16 +157,21 @@ def select_payees(update: Update, context: CallbackContext) -> int:
     query.answer()
 
     transaction = context.user_data['transaction']
+    # payer = context.user_data['payer']
 
     if re.match(telegram_user_id_regex, query.data):
-        selected_payee = query.data
-        transaction.toggle_payee(selected_payee)
+        selected_payee_id = int(query.data)
+        for payee in transaction.payees:
+            if payee.id == selected_payee_id:
+                payee.toggle_payee_status()
+                break
 
     context.user_data['transaction'] = transaction
+    # context.user_data['payer'] = payer
 
     payer_buttons = [
-        InlineKeyboardButton('💵 ' + payee['name'] if payee['is_selected'] else payee['name'],
-                             callback_data=payee['telegram_id']) for payee in transaction.payees
+        InlineKeyboardButton('💵 ' + payee.name if payee.is_selected else payee.name,
+                             callback_data=payee.id) for payee in transaction.payees
     ]
 
     control_buttons = [[InlineKeyboardButton("✅ Готово", callback_data=str("done"))]] + [[
@@ -208,7 +212,7 @@ def select_payees(update: Update, context: CallbackContext) -> int:
 
 def prepare_transaction(update: Update, context: CallbackContext) -> int:
 
-    user_id, user_name = update.message.from_user.id, update.message.from_user.first_name
+    user = Payer(update.message.from_user.first_name, update.message.from_user.id)
     group_id, group_name = str(update.message.chat.id), update.message.chat.title
 
     sheets_api_client = google_sheets_api
@@ -221,18 +225,18 @@ def prepare_transaction(update: Update, context: CallbackContext) -> int:
     sheet_manager = GroupSpreadSheetManager(
         sheets_api_client.open_spreadsheet_by_name(group_spreadsheet_name))
 
-    payer = sheet_manager.payers.get_payer_by_id(user_id)
     payers = sheet_manager.payers.list_payers()
 
     # ToDo payer exists as method?
-    if not sheet_manager.payers.payer_exists(user_id):
+    # if not sheet_manager.payers.payer_exists(payer):
+    if user not in payers:
         update.message.reply_text('Сначала вступите в группу')
         return ConversationHandler.END
 
     item = ' '.join(context.args[1:])  # .lower()
     price = context.args[0]  # .replace(',', '.')  # .lower()
 
-    transaction = Transaction(item, price, payer, payers)
+    transaction = Transaction(item, price, user, payers)
 
     if not transaction.is_valid:
         update.message.reply_text(
@@ -246,10 +250,11 @@ def prepare_transaction(update: Update, context: CallbackContext) -> int:
         # context.user_data['payer_manager'] = payer_manager
 
     context.user_data['transaction'] = transaction
+    context.user_data['payer'] = user
 
     keyboard = [
         [
-            InlineKeyboardButton('Разделить на всех', callback_data='add'),
+            InlineKeyboardButton('Разделить на всех', callback_data='split_even'),
             InlineKeyboardButton('Выбрать участниов', callback_data='select'),
         ]
     ]
@@ -350,7 +355,7 @@ def main() -> None:
         states={
             SELECT_SPLIT_STAGE: [
                 CallbackQueryHandler(select_payees, pattern='^(select)$'),
-                # CallbackQueryHandler(add_transaction, pattern='^(add)$'),
+                CallbackQueryHandler(add_transaction, pattern='^(split_even)$'),
             ],
             SELECT_PAYEES_STAGE: [
                 CallbackQueryHandler(select_payees, pattern=telegram_user_id_regex),

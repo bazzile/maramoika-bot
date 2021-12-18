@@ -61,6 +61,13 @@ class Payer:
     def toggle_payee_status(self):
         self.is_selected = not self.is_selected
 
+    def __eq__(self, other):
+        if not isinstance(other, Payer):
+            # don't attempt to compare against unrelated types
+            return NotImplemented
+
+        return self.id == other.id
+
 
 class PayerSheet(Sheet):
     def __init__(self, sheet, sheet_name):
@@ -68,7 +75,8 @@ class PayerSheet(Sheet):
         # self.payers = []
 
     def list_payers(self):
-        payer_list = [Payer(*record) for record in self.sheet.get_all_records()]
+        logger.info(self.sheet.get_all_records())
+        payer_list = [Payer(record['name'], record['telegram_id']) for record in self.sheet.get_all_records()]
         return payer_list
 
     def get_payer_by_id(self, payer_id):
@@ -77,8 +85,8 @@ class PayerSheet(Sheet):
         if payer:
             return payer
 
-    def payer_exists(self, payer_id):
-        payer = self.get_payer_by_id(payer_id)
+    def payer_exists(self, payer):
+        payer = self.get_payer_by_id(payer.id)
         if payer:
             return True
 
